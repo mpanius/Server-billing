@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.auth import COOKIE_NAME, check_login, create_session_token, is_authenticated
+from app.auth import COOKIE_NAME, check_login, create_session_token, hash_password, is_authenticated
 from app.config import settings
 from app.db import init_db
 from app.repository import (
@@ -22,13 +22,15 @@ from app.repository import (
     list_accounts,
     list_servers,
     mark_paid,
+    monthly_expense_summary,
     notification_settings,
+    provider_expense_summary,
     save_notification_settings,
     seed_demo_data,
     update_account,
     update_server,
 )
-from app.reminders import send_telegram
+from app.reminders import send_backup, send_due_reminders, send_telegram
 from app.telegram import build_telegram_share_url
 
 app = FastAPI(title=settings.app_name)
@@ -348,6 +350,8 @@ def settings_page(request: Request, saved: str = "", tested: str = "") -> HTMLRe
             "token_configured": bool(current.get("telegram_bot_token")),
             "saved": saved,
             "tested": tested,
+            "backup_sent": request.query_params.get("backup_sent", ""),
+            "checked": request.query_params.get("checked", ""),
         },
     )
 
@@ -359,6 +363,7 @@ def save_settings(
     reminder_days: str = Form("7,3,1,0,-1"),
     check_interval_seconds: int = Form(86400),
     base_url: str = Form(""),
+    backup_interval_days: int = Form(7),
 ) -> RedirectResponse:
     save_notification_settings(
         telegram_bot_token=telegram_bot_token,
@@ -366,6 +371,7 @@ def save_settings(
         reminder_days=reminder_days,
         check_interval_seconds=check_interval_seconds,
         base_url=base_url,
+        backup_interval_days=backup_interval_days,
     )
     return RedirectResponse("/settings?saved=1", status_code=303)
 
@@ -377,6 +383,67 @@ def test_telegram() -> RedirectResponse:
     except Exception:
         sent = False
     return RedirectResponse(f"/settings?tested={'1' if sent else '0'}", status_code=303)
+
+
+@app.post("/settings/telegram/backup")
+def send_backup_now() -> RedirectResponse:
+    try:
+        sent = send_backup()
+    except Exception:
+        sent = False
+    return RedirectResponse(f"/settings?backup_sent={'1' if sent else '0'}", status_code=303)
+
+
+@app.post("/settings/reminders/run")
+def run_reminder_check() -> RedirectResponse:
+    try:
+        sent = send_due_reminders()
+        return RedirectResponse(f"/settings?checked={sent}", status_code=303)
+    except Exception:
+        return RedirectResponse("/settings?checked=error", status_code=303)
+
+
+@app.post("/settings/password")
+def change_password(
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    new_password_repeat: str = Form(...),
+) -> RedirectResponse:
+    if not check_login(settings.admin_username, current_password):
+        return RedirectResponse("/settings?password=bad-current", status_code=303)
+    if len(new_password) < 8 or new_password != new_password_repeat:
+        return RedirectResponse("/settings?password=invalid-new", status_code=303)
+    env_path = ".env"
+    lines: list[str] = []
+    written = False
+    try:
+        with open(env_path, "r", encoding="utf-8") as file:
+            source_lines = file.read().splitlines()
+    except FileNotFoundError:
+        source_lines = []
+    for line in source_lines:
+        if line.startswith("ADMIN_PASSWORD_HASH="):
+            lines.append("ADMIN_PASSWORD_HASH=" + hash_password(new_password))
+            written = True
+        else:
+            lines.append(line)
+    if not written:
+        lines.append("ADMIN_PASSWORD_HASH=" + hash_password(new_password))
+    with open(env_path, "w", encoding="utf-8") as file:
+        file.write("\n".join(lines) + "\n")
+    return RedirectResponse("/settings?password=changed", status_code=303)
+
+
+@app.get("/analytics", response_class=HTMLResponse)
+def analytics_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        "analytics.html",
+        {
+            "request": request,
+            "monthly": monthly_expense_summary(),
+            "providers": provider_expense_summary(),
+        },
+    )
 
 
 @app.get("/servers/{server_id}/pay", response_class=HTMLResponse)

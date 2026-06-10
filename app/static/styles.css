@@ -605,7 +605,17 @@ dd {
 }
 
 .settings-grid .panel:first-child {
-  grid-row: span 2;
+  grid-row: span 3;
+}
+
+.settings-grid aside form + form {
+  margin-top: 10px;
+}
+
+.stack-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .success {

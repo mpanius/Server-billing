@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Расходы</p>
+    <h1>Аналитика оплат</h1>
+  </div>
+</section>
+
+<section class="layout">
+  <div class="panel">
+    <div class="panel-head">
+      <h2>По месяцам</h2>
+      <span>{{ monthly|length }}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Месяц</th>
+            <th>Валюта</th>
+            <th>Сумма</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in monthly %}
+          <tr>
+            <td>{{ row.month }}</td>
+            <td>{{ row.currency }}</td>
+            <td>{{ "%g"|format(row.amount) }}</td>
+          </tr>
+          {% else %}
+          <tr><td class="empty" colspan="3">Аналитика появится после первой отмеченной оплаты.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>По провайдерам</h2>
+      <span>{{ providers|length }}</span>
+    </div>
+    <div class="timeline">
+      {% for row in providers %}
+      <div class="timeline-item">
+        <span>{{ row.currency }}</span>
+        <strong>{{ row.provider }}</strong>
+        <small>{{ "%g"|format(row.amount) }} {{ row.currency }}</small>
+      </div>
+      {% else %}
+      <p class="muted">Пока нет данных.</p>
+      {% endfor %}
+    </div>
+  </aside>
+</section>
+{% endblock %}

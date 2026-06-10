@@ -15,6 +15,23 @@
 {% elif tested == "0" %}
 <div class="notice">Не удалось отправить тест: проверь токен и chat id.</div>
 {% endif %}
+{% if backup_sent == "1" %}
+<div class="notice success">Backup базы отправлен в Telegram.</div>
+{% elif backup_sent == "0" %}
+<div class="notice">Не удалось отправить backup: проверь Telegram-настройки.</div>
+{% endif %}
+{% if checked and checked != "error" %}
+<div class="notice success">Проверка уведомлений выполнена. Отправлено: {{ checked }}.</div>
+{% elif checked == "error" %}
+<div class="notice">Не удалось выполнить проверку уведомлений.</div>
+{% endif %}
+{% if request.query_params.get("password") == "changed" %}
+<div class="notice success">Пароль изменен. При следующем входе используйте новый пароль.</div>
+{% elif request.query_params.get("password") == "bad-current" %}
+<div class="notice">Текущий пароль указан неверно.</div>
+{% elif request.query_params.get("password") == "invalid-new" %}
+<div class="notice">Новый пароль должен быть не короче 8 символов и совпадать с повтором.</div>
+{% endif %}
 
 <section class="settings-grid">
   <form class="panel" method="post" action="/settings">
@@ -43,6 +60,10 @@
         Интервал проверки, сек.
         <input type="number" min="60" name="check_interval_seconds" value="{{ notification.check_interval_seconds }}">
       </label>
+      <label>
+        Backup в Telegram, дней
+        <input type="number" min="0" name="backup_interval_days" value="{{ notification.backup_interval_days }}">
+      </label>
     </div>
     <div class="form-actions">
       <button class="primary" type="submit">Сохранить</button>
@@ -57,6 +78,34 @@
     <p class="muted">Тест отправит короткое сообщение в текущий Telegram chat id.</p>
     <form method="post" action="/settings/telegram/test">
       <button class="secondary" type="submit">Отправить тест</button>
+    </form>
+    <form method="post" action="/settings/telegram/backup">
+      <button class="secondary" type="submit">Отправить backup</button>
+    </form>
+    <form method="post" action="/settings/reminders/run">
+      <button class="secondary" type="submit">Проверить уведомления сейчас</button>
+    </form>
+  </aside>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Пароль</h2>
+      <span>admin</span>
+    </div>
+    <form method="post" action="/settings/password" class="stack-form">
+      <label>
+        Текущий пароль
+        <input type="password" name="current_password" autocomplete="current-password" required>
+      </label>
+      <label>
+        Новый пароль
+        <input type="password" name="new_password" autocomplete="new-password" required>
+      </label>
+      <label>
+        Повтор нового пароля
+        <input type="password" name="new_password_repeat" autocomplete="new-password" required>
+      </label>
+      <button class="secondary" type="submit">Сменить пароль</button>
     </form>
   </aside>
 

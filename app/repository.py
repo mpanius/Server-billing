@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from collections import defaultdict
 
 from app.config import settings
 from app.crypto import decrypt_secret, encrypt_secret, is_encrypted
@@ -247,6 +248,29 @@ def list_payment_history(server_id: int | None = None) -> list[PaymentHistoryIte
     return [payment_history_from_row(row) for row in rows]
 
 
+def monthly_expense_summary() -> list[dict[str, object]]:
+    summary: dict[tuple[str, str], float] = defaultdict(float)
+    for item in list_payment_history():
+        month = item.paid_at.strftime("%Y-%m")
+        summary[(month, item.currency)] += item.amount
+    rows = [
+        {"month": month, "currency": currency, "amount": amount}
+        for (month, currency), amount in summary.items()
+    ]
+    return sorted(rows, key=lambda row: str(row["month"]), reverse=True)
+
+
+def provider_expense_summary() -> list[dict[str, object]]:
+    summary: dict[tuple[str, str], float] = defaultdict(float)
+    for item in list_payment_history():
+        summary[(item.provider, item.currency)] += item.amount
+    rows = [
+        {"provider": provider, "currency": currency, "amount": amount}
+        for (provider, currency), amount in summary.items()
+    ]
+    return sorted(rows, key=lambda row: float(row["amount"]), reverse=True)
+
+
 SECRET_SETTING_KEYS = {"telegram_bot_token"}
 
 
@@ -288,6 +312,9 @@ def notification_settings() -> dict[str, str]:
             "check_interval_seconds", str(settings.check_interval_seconds)
         ),
         "base_url": get_effective_setting("base_url", settings.base_url),
+        "backup_interval_days": get_effective_setting(
+            "backup_interval_days", str(settings.backup_interval_days)
+        ),
     }
 
 
@@ -297,6 +324,7 @@ def save_notification_settings(
     reminder_days: str,
     check_interval_seconds: int,
     base_url: str,
+    backup_interval_days: int,
 ) -> None:
     if telegram_bot_token.strip():
         set_app_setting("telegram_bot_token", telegram_bot_token.strip())
@@ -304,6 +332,21 @@ def save_notification_settings(
     set_app_setting("reminder_days", reminder_days.strip() or "7,3,1,0,-1")
     set_app_setting("check_interval_seconds", str(check_interval_seconds))
     set_app_setting("base_url", base_url.strip() or settings.base_url)
+    set_app_setting("backup_interval_days", str(backup_interval_days))
+
+
+def get_last_backup_at() -> date | None:
+    value = get_app_setting("last_backup_at", "")
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def mark_backup_sent() -> None:
+    set_app_setting("last_backup_at", date.today().isoformat())
 
 
 def encrypt_existing_secrets() -> None:

@@ -6,11 +6,17 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import date
+from pathlib import Path
 
 from app.config import settings
-from app.db import connect
+from app.db import connect, database_path
 from app.models import Server
-from app.repository import list_servers, notification_settings
+from app.repository import (
+    get_last_backup_at,
+    list_servers,
+    mark_backup_sent,
+    notification_settings,
+)
 from app.telegram import build_payment_deeplink
 
 logger = logging.getLogger(__name__)
@@ -118,6 +124,74 @@ def send_telegram(text: str) -> bool:
     return True
 
 
+def send_telegram_document(path: Path, caption: str = "") -> bool:
+    current_settings = notification_settings()
+    token = current_settings.get("telegram_bot_token", "").strip()
+    chat_id = current_settings.get("telegram_chat_id", "").strip()
+    if not token or not chat_id:
+        logger.info("Telegram token or chat id is empty; backup delivery is disabled.")
+        return False
+
+    boundary = "----server-billing-boundary"
+    file_bytes = path.read_bytes()
+    fields = [
+        (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="chat_id"\r\n\r\n'
+            f"{chat_id}\r\n"
+        ).encode(),
+        (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="caption"\r\n\r\n'
+            f"{caption}\r\n"
+        ).encode(),
+        (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="document"; filename="{path.name}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode(),
+        file_bytes,
+        f"\r\n--{boundary}--\r\n".encode(),
+    ]
+    body = b"".join(fields)
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendDocument",
+        data=body,
+        method="POST",
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        parsed = json.loads(response.read().decode("utf-8"))
+        if not parsed.get("ok"):
+            raise RuntimeError(parsed)
+    return True
+
+
+def send_backup() -> bool:
+    path = database_path()
+    if not path.exists():
+        logger.warning("Database file does not exist: %s", path)
+        return False
+    sent = send_telegram_document(
+        path,
+        caption=f"Server Billing backup: {date.today().isoformat()}",
+    )
+    if sent:
+        mark_backup_sent()
+    return sent
+
+
+def send_due_backup() -> bool:
+    current_settings = notification_settings()
+    interval = int(current_settings.get("backup_interval_days", "7") or "0")
+    if interval <= 0:
+        return False
+    last_backup_at = get_last_backup_at()
+    if last_backup_at is not None and (date.today() - last_backup_at).days < interval:
+        return False
+    return send_backup()
+
+
 def send_due_reminders() -> int:
     due_days = reminder_days()
     sent = 0
@@ -143,7 +217,13 @@ def main() -> None:
     while True:
         try:
             sent = send_due_reminders()
-            logger.info("Reminder check finished. Sent: %s. Date: %s", sent, date.today())
+            backup_sent = send_due_backup()
+            logger.info(
+                "Reminder check finished. Sent: %s. Backup sent: %s. Date: %s",
+                sent,
+                backup_sent,
+                date.today(),
+            )
         except Exception:
             logger.exception("Reminder check failed.")
         interval = int(notification_settings().get("check_interval_seconds", 86400))

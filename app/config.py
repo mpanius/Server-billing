@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     telegram_chat_id: str = ""
     reminder_days: str = "7,3,1,0,-1"
     check_interval_seconds: int = 86400
+    backup_interval_days: int = 7
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
