@@ -1133,6 +1133,7 @@ td strong {
 }
 
 .checkbox-label {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
@@ -1140,6 +1141,8 @@ td strong {
 
 .checkbox-label input {
   width: auto;
+  flex: none;
+  margin: 0;
 }
 
 .calendar-nav {
