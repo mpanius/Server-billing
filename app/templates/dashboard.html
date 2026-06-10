@@ -125,6 +125,11 @@
               <div class="action-buttons">
                 <a class="icon-link" href="/servers/{{ server.id }}/pay" title="Открыть оплату">Оплата</a>
                 <a class="icon-link ghost" href="/servers/{{ server.id }}/edit" title="Редактировать">Правка</a>
+                {% if web_terminal_enabled and server.can_terminal %}
+                <a class="icon-link ghost" href="/servers/{{ server.id }}/terminal" title="Открыть веб-терминал">Терминал</a>
+                {% else %}
+                <span class="icon-link ghost disabled" title="{% if not web_terminal_enabled %}Веб-терминал выключен в настройках{% else %}Нужны IP, логин и пароль{% endif %}">Терминал</span>
+                {% endif %}
               </div>
             </td>
           </tr>

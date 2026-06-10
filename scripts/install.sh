@@ -220,12 +220,23 @@ PY
   cd "$INSTALL_DIR"
   docker compose -f docker-compose.prod.yml up -d --build
 
+  local panel_ip
+  panel_ip="$(grep '^SERVER_IP=' .env | cut -d= -f2-)"
+
   echo
   echo "Done."
   echo "Open: $(grep '^BASE_URL=' .env | cut -d= -f2-)"
   echo "Login: $admin_username"
   echo "Project directory: $INSTALL_DIR"
   echo "Configure Telegram notifications in the web panel: Settings -> Setup wizard"
+  echo
+  echo "Web terminal (browser SSH): a per-server 'Терминал' button opens an SSH session"
+  echo "from this panel to the target server, streamed to your browser (xterm.js + WebSocket)."
+  echo "It is DISABLED by default. Enable it in: Settings -> Веб-терминал."
+  echo "The SSH connection originates from THIS server ($panel_ip), so the target server"
+  echo "must allow SSH from $panel_ip. Set the SSH port per server (default 22)."
+  echo "Known host keys are stored in $INSTALL_DIR/data/ssh_known_hosts.json (TOFU)."
+  echo
   echo "Update later from the web panel or with: cd $INSTALL_DIR && git pull && docker compose -f docker-compose.prod.yml up -d --build"
 }
 

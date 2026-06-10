@@ -44,6 +44,10 @@
     <input type="password" name="server_password" value="{{ server.server_password if server else '' }}" autocomplete="new-password" placeholder="пароль от сервера">
   </label>
   <label>
+    SSH порт
+    <input type="number" min="1" max="65535" name="ssh_port" value="{{ server.ssh_port if server else '22' }}" placeholder="22">
+  </label>
+  <label>
     ID услуги
     <input name="service_id" value="{{ server.service_id if server else '' }}" placeholder="vds-1021">
   </label>

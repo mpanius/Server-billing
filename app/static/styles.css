@@ -1262,3 +1262,45 @@ td strong {
 .sync-status.error {
   color: var(--red);
 }
+
+.notice.warning {
+  border-color: #ffd27a;
+  background: #fff5df;
+  color: #8a5a00;
+}
+
+.icon-link.disabled,
+.icon-link.ghost.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.terminal-panel {
+  margin-top: 16px;
+  padding: 14px;
+}
+
+.terminal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.term-status {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.terminal-host {
+  height: 70vh;
+  min-height: 360px;
+  width: 100%;
+  background: #0b0f19;
+  border-radius: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+}

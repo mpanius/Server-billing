@@ -66,6 +66,7 @@ class Server:
     location: str
     server_login: str
     server_password: str
+    ssh_port: int
     service_id: str
     amount: float
     currency: str
@@ -118,6 +119,10 @@ class Server:
     def effective_panel_url(self) -> str:
         return self.panel_url or self.account_panel_url
 
+    @property
+    def can_terminal(self) -> bool:
+        return bool(self.ip_address.strip() and self.server_login.strip() and self.server_password)
+
 
 def parse_date(value: str) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
@@ -158,6 +163,7 @@ def server_from_row(row: Row) -> Server:
         location=str(row_value(row, "location", "") or ""),
         server_login=str(row_value(row, "server_login", "") or ""),
         server_password=decrypt_secret(str(row_value(row, "server_password", "") or "")),
+        ssh_port=int(row_value(row, "ssh_port", 22) or 22),
         service_id=row["service_id"] or "",
         amount=float(row["amount"] or 0),
         currency=row["currency"],

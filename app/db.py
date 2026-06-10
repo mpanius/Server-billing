@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS servers (
     location TEXT DEFAULT '',
     server_login TEXT DEFAULT '',
     server_password TEXT DEFAULT '',
+    ssh_port INTEGER NOT NULL DEFAULT 22,
     service_id TEXT DEFAULT '',
     amount REAL NOT NULL DEFAULT 0,
     currency TEXT NOT NULL DEFAULT 'RUB',
@@ -117,6 +118,7 @@ def init_db() -> None:
         ensure_column(connection, "servers", "location", "TEXT DEFAULT ''")
         ensure_column(connection, "servers", "server_login", "TEXT DEFAULT ''")
         ensure_column(connection, "servers", "server_password", "TEXT DEFAULT ''")
+        ensure_column(connection, "servers", "ssh_port", "INTEGER NOT NULL DEFAULT 22")
         ensure_column(connection, "hosting_accounts", "integration_type", "TEXT NOT NULL DEFAULT 'manual'")
         ensure_column(connection, "hosting_accounts", "integration_url", "TEXT DEFAULT ''")
         ensure_column(connection, "hosting_accounts", "auto_sync_enabled", "INTEGER NOT NULL DEFAULT 0")

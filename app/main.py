@@ -4,7 +4,7 @@ import calendar as calendar_lib
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Request, WebSocket
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -41,6 +41,7 @@ from app.connectors import ConnectorError, build_connector
 from app.provider_sync import sync_account
 from app.provider_templates import list_provider_templates, provider_countries
 from app.system_update import start_system_update
+from app.terminal import terminal_websocket, web_terminal_enabled
 from app.telegram import build_telegram_share_url, detect_telegram_chats, telegram_bot_username
 from app.version import current_version
 
@@ -135,7 +136,14 @@ def form_payload(
     panel_url: str,
     notes: str,
     sync_locked: bool = False,
+    ssh_port: int = 22,
 ) -> dict[str, object]:
+    try:
+        normalized_port = int(ssh_port)
+    except (TypeError, ValueError):
+        normalized_port = 22
+    if normalized_port < 1 or normalized_port > 65535:
+        normalized_port = 22
     normalized_currency = currency.strip().upper() or "RUB"
     if normalized_currency not in SUPPORTED_CURRENCIES:
         normalized_currency = "RUB"
@@ -147,6 +155,7 @@ def form_payload(
         "location": location.strip(),
         "server_login": server_login.strip(),
         "server_password": server_password.strip(),
+        "ssh_port": normalized_port,
         "service_id": service_id.strip(),
         "amount": amount,
         "currency": normalized_currency,
@@ -262,6 +271,7 @@ def dashboard(
             "donation_url": DONATION_URL,
             "provider_templates": list_provider_templates(),
             "today": date.today(),
+            "web_terminal_enabled": web_terminal_enabled(),
             "stats": {
                 "total": len(servers),
                 "due_7": len(due_7),
@@ -290,6 +300,7 @@ def add_server(
     panel_url: str = Form(""),
     notes: str = Form(""),
     sync_locked: bool = Form(False),
+    ssh_port: int = Form(22),
 ) -> RedirectResponse:
     create_server(
         form_payload(
@@ -309,6 +320,7 @@ def add_server(
             panel_url,
             notes,
             sync_locked,
+            ssh_port,
         )
     )
     return RedirectResponse("/", status_code=303)
@@ -329,6 +341,7 @@ def edit_server(request: Request, server_id: int) -> HTMLResponse:
             "account_options": account_form_options(accounts),
             "provider_templates": list_provider_templates(),
             "donation_url": DONATION_URL,
+            "web_terminal_enabled": web_terminal_enabled(),
         },
     )
 
@@ -352,6 +365,7 @@ def save_server(
     panel_url: str = Form(""),
     notes: str = Form(""),
     sync_locked: bool = Form(False),
+    ssh_port: int = Form(22),
 ) -> RedirectResponse:
     update_server(
         server_id,
@@ -372,6 +386,7 @@ def save_server(
             panel_url,
             notes,
             sync_locked,
+            ssh_port,
         ),
     )
     return RedirectResponse("/", status_code=303)
@@ -693,6 +708,7 @@ def settings_page(request: Request, saved: str = "", tested: str = "") -> HTMLRe
             "updated": request.query_params.get("updated", ""),
             "update_enabled": bool(settings.app_update_url and settings.app_update_token),
             "version": current_version(),
+            "web_terminal_enabled": web_terminal_enabled(),
         },
     )
 
@@ -808,6 +824,12 @@ def update_application() -> RedirectResponse:
     return RedirectResponse(f"/settings?updated={result}", status_code=303)
 
 
+@app.post("/settings/web-terminal")
+def toggle_web_terminal(enabled: str = Form("0")) -> RedirectResponse:
+    set_app_setting("web_terminal_enabled", "1" if enabled.strip() == "1" else "0")
+    return RedirectResponse("/settings?saved=1#web-terminal", status_code=303)
+
+
 @app.post("/settings/password")
 def change_password(
     current_password: str = Form(...),
@@ -857,6 +879,31 @@ def save_domain(domain: str = Form("")) -> RedirectResponse:
     if domain:
         set_app_setting("base_url", f"https://{domain}")
     return RedirectResponse("/domain?saved=1", status_code=303)
+
+
+@app.get("/servers/{server_id}/terminal", response_class=HTMLResponse)
+def terminal_page(request: Request, server_id: int) -> HTMLResponse:
+    server = get_server(server_id)
+    if server is None:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(
+        "terminal.html",
+        {
+            "request": request,
+            "server_id": server.id,
+            "server_name": server.name,
+            "server_host": server.ip_address or "—",
+            "ssh_port": server.ssh_port or 22,
+            "can_terminal": server.can_terminal,
+            "terminal_enabled": web_terminal_enabled(),
+            "donation_url": DONATION_URL,
+        },
+    )
+
+
+@app.websocket("/servers/{server_id}/terminal/ws")
+async def terminal_ws(websocket: WebSocket, server_id: int) -> None:
+    await terminal_websocket(websocket, server_id)
 
 
 @app.get("/servers/{server_id}/pay", response_class=HTMLResponse)

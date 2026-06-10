@@ -15,6 +15,15 @@
       <button class="primary" type="submit">Сохранить</button>
     </div>
   </form>
+  <div class="form-actions split">
+    {% if web_terminal_enabled and server.can_terminal %}
+    <a class="secondary" href="/servers/{{ server.id }}/terminal">Открыть веб-терминал</a>
+    {% elif not web_terminal_enabled %}
+    <span class="muted">Веб-терминал выключен в <a href="/settings#web-terminal">настройках</a>.</span>
+    {% else %}
+    <span class="muted">Для терминала нужны IP, логин и пароль.</span>
+    {% endif %}
+  </div>
   <form method="post" action="/servers/{{ server.id }}/delete" onsubmit="return confirm('Удалить сервер?')">
     <button class="danger" type="submit">Удалить</button>
   </form>

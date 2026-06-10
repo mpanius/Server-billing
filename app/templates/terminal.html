@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Веб-терминал</p>
+    <h1>{{ server_name }}</h1>
+  </div>
+  <a class="secondary-link" href="/">Назад</a>
+</section>
+
+<div class="notice warning">
+  Внимание: команды выполняются на сервере <strong>{{ server_host }}:{{ ssh_port }}</strong> ({{ server_name }}).
+  SSH-подключение идёт с сервера панели, а не с вашего компьютера.
+</div>
+
+{% if not terminal_enabled %}
+<div class="notice error">
+  Веб-терминал выключен. Включите его в <a href="/settings#web-terminal">Настройках</a>.
+</div>
+{% elif not can_terminal %}
+<div class="notice error">
+  Для подключения нужны IP, логин и пароль сервера. Заполните их в карточке сервера.
+</div>
+{% else %}
+<section class="panel terminal-panel">
+  <div class="terminal-toolbar">
+    <span id="term-status" class="term-status">Инициализация…</span>
+    <button id="term-reconnect" class="secondary" type="button" hidden>Переподключить</button>
+  </div>
+  <div id="terminal" class="terminal-host"></div>
+</section>
+
+<link rel="stylesheet" href="/static/vendor/xterm.css">
+<script src="/static/vendor/xterm.js"></script>
+<script src="/static/vendor/xterm-addon-fit.js"></script>
+<script>
+  (() => {
+    const statusEl = document.getElementById("term-status");
+    const reconnectBtn = document.getElementById("term-reconnect");
+    const setStatus = (text) => { statusEl.textContent = text; };
+
+    const term = new Terminal({
+      cursorBlink: true,
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      fontSize: 14,
+      theme: { background: "#0b0f19", foreground: "#e6edf3" },
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById("terminal"));
+    try { fit.fit(); } catch (_) {}
+
+    const decoder = new TextDecoder();
+    let ws = null;
+
+    const sendResize = () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+      }
+    };
+
+    const connect = () => {
+      reconnectBtn.hidden = true;
+      setStatus("Подключение…");
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/servers/{{ server_id }}/terminal/ws`);
+      ws.binaryType = "arraybuffer";
+
+      ws.onopen = () => { setStatus("Подключено"); sendResize(); term.focus(); };
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          term.write(decoder.decode(new Uint8Array(event.data)));
+          return;
+        }
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === "error") {
+            term.writeln(`\r\n\x1b[31m*** ${message.message}\x1b[0m`);
+            setStatus(message.message);
+          } else if (message.type === "status") {
+            term.writeln(`\r\n\x1b[36m*** ${message.message}\x1b[0m`);
+            setStatus(message.message);
+          }
+        } catch (_) {}
+      };
+      ws.onclose = () => { setStatus("Соединение закрыто"); reconnectBtn.hidden = false; };
+      ws.onerror = () => { setStatus("Ошибка соединения"); };
+    };
+
+    term.onData((data) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "input", data }));
+      }
+    });
+    term.onResize(sendResize);
+    window.addEventListener("resize", () => { try { fit.fit(); } catch (_) {} });
+    reconnectBtn.addEventListener("click", connect);
+
+    connect();
+  })();
+</script>
+{% endif %}
+{% endblock %}

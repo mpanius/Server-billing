@@ -212,6 +212,23 @@
     </form>
   </aside>
 
+  <aside class="panel" id="web-terminal">
+    <div class="panel-head">
+      <h2>Веб-терминал</h2>
+      <span>{{ "включён" if web_terminal_enabled else "выключен" }}</span>
+    </div>
+    <p class="muted">
+      Открывает SSH-сессию к серверу прямо в браузере. Подключение идёт с сервера панели,
+      пароль не покидает сервер. Команды выполняются на выбранном сервере — включайте осознанно.
+    </p>
+    <form method="post" action="/settings/web-terminal">
+      <input type="hidden" name="enabled" value="{{ '0' if web_terminal_enabled else '1' }}">
+      <button class="{{ 'danger' if web_terminal_enabled else 'secondary' }}" type="submit">
+        {{ "Выключить веб-терминал" if web_terminal_enabled else "Включить веб-терминал" }}
+      </button>
+    </form>
+  </aside>
+
   <aside class="panel">
     <div class="panel-head">
       <h2>Пароль</h2>

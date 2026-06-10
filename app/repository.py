@@ -158,9 +158,9 @@ def create_server(data: dict[str, object]) -> int:
             """
             INSERT INTO servers (
                 hosting_account_id, name, provider, ip_address, location, server_login,
-                server_password, service_id, amount, currency, billing_period_days,
+                server_password, ssh_port, service_id, amount, currency, billing_period_days,
                 next_payment_date, payment_url, panel_url, notes, sync_locked
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data.get("hosting_account_id"),
@@ -170,6 +170,7 @@ def create_server(data: dict[str, object]) -> int:
                 data.get("location", ""),
                 data.get("server_login", ""),
                 encrypt_secret(str(data.get("server_password", ""))),
+                int(data.get("ssh_port", 22) or 22),
                 data.get("service_id", ""),
                 data["amount"],
                 data["currency"],
@@ -190,7 +191,7 @@ def update_server(server_id: int, data: dict[str, object]) -> None:
             """
             UPDATE servers
             SET hosting_account_id = ?, name = ?, provider = ?, ip_address = ?, location = ?,
-                server_login = ?, server_password = ?, service_id = ?, amount = ?, currency = ?,
+                server_login = ?, server_password = ?, ssh_port = ?, service_id = ?, amount = ?, currency = ?,
                 billing_period_days = ?, next_payment_date = ?, payment_url = ?, panel_url = ?, notes = ?,
                 sync_locked = ?
             WHERE id = ?
@@ -203,6 +204,7 @@ def update_server(server_id: int, data: dict[str, object]) -> None:
                 data.get("location", ""),
                 data.get("server_login", ""),
                 encrypt_secret(str(data.get("server_password", ""))),
+                int(data.get("ssh_port", 22) or 22),
                 data.get("service_id", ""),
                 data["amount"],
                 data["currency"],
