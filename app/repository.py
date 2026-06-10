@@ -274,9 +274,12 @@ def provider_expense_summary() -> list[dict[str, object]]:
 
 def currency_settings() -> dict[str, object]:
     rates_text = get_effective_setting("currency_rates", settings.currency_rates)
+    rates = rates_from_string(rates_text)
+    if "USDT" not in rates and "USD" in rates:
+        rates["USDT"] = rates["USD"]
     return {
         "base": get_effective_setting("currency_base", settings.currency_base).upper(),
-        "rates": rates_from_string(rates_text),
+        "rates": rates,
         "rates_text": rates_text,
         "updated_at": get_effective_setting(
             "currency_rates_updated_at", settings.currency_rates_updated_at
@@ -313,14 +316,16 @@ def monthly_plan_summary(servers: list[Server] | None = None) -> dict[str, objec
     total_base = 0.0
     missing: list[str] = []
     for currency, amount in by_currency.items():
-        if currency == base:
+        normalized_currency = "USD" if currency == "USDT" else currency
+        normalized_base = "USD" if base == "USDT" else base
+        if normalized_currency == normalized_base:
             total_base += amount
-        elif currency == "RUB" and base in rates and rates[base]:
-            total_base += amount / rates[base]
-        elif currency in rates and base == "RUB":
-            total_base += amount * rates[currency]
-        elif currency in rates and base in rates and rates[base]:
-            total_base += amount * rates[currency] / rates[base]
+        elif normalized_currency == "RUB" and normalized_base in rates and rates[normalized_base]:
+            total_base += amount / rates[normalized_base]
+        elif normalized_currency in rates and normalized_base == "RUB":
+            total_base += amount * rates[normalized_currency]
+        elif normalized_currency in rates and normalized_base in rates and rates[normalized_base]:
+            total_base += amount * rates[normalized_currency] / rates[normalized_base]
         else:
             missing.append(currency)
 

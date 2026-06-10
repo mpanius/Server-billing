@@ -71,7 +71,11 @@
       </label>
       <label>
         Базовая валюта
-        <input name="currency_base" value="{{ currency.base }}" placeholder="RUB">
+        <select name="currency_base">
+          <option value="RUB" {% if currency.base == "RUB" %}selected{% endif %}>RUB · рубли</option>
+          <option value="USD" {% if currency.base == "USD" %}selected{% endif %}>USD · доллары</option>
+          <option value="USDT" {% if currency.base == "USDT" %}selected{% endif %}>USDT · Tether</option>
+        </select>
       </label>
       <label class="wide">
         Курсы к RUB
