@@ -65,7 +65,7 @@ textarea {
   border-radius: 8px;
   background: var(--text);
   color: white;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .brand small,
@@ -78,7 +78,7 @@ td small,
 
 .topnav a {
   color: var(--muted);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .topnav .donate-link {
@@ -104,7 +104,7 @@ td small,
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-weight: 650;
+  font-weight: 600;
   padding: 0;
 }
 
@@ -132,7 +132,7 @@ td small,
   margin: 0 0 6px;
   color: var(--blue);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -141,6 +141,13 @@ h1,
 h2 {
   margin: 0;
   letter-spacing: 0;
+  font-weight: 650;
+}
+
+h3,
+strong,
+b {
+  font-weight: 650;
 }
 
 h1 {
@@ -165,7 +172,7 @@ h2 {
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 750;
+  font-weight: 650;
 }
 
 .primary {
@@ -281,7 +288,7 @@ h2 {
   border-radius: 999px;
   background: #f2f5f9;
   color: var(--muted);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .onboarding-item.done span {
@@ -347,7 +354,7 @@ td strong {
   padding: 0 10px;
   border-radius: 999px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .badge.ok {
@@ -385,7 +392,7 @@ td strong {
 .timeline-item span {
   grid-row: span 2;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .timeline-item.soon {
@@ -425,7 +432,7 @@ label {
   gap: 7px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 input,
@@ -525,7 +532,8 @@ dl div {
 
 dd {
   margin: 4px 0 0;
-  font-weight: 750;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .notes {
@@ -594,10 +602,24 @@ dd {
   padding: 16px;
 }
 
+.account-card dl {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.account-card h2,
+.account-card dd,
+.account-mini strong,
+td strong {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
 .account-provider {
   color: var(--blue);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
   text-transform: uppercase;
 }
 
@@ -634,7 +656,7 @@ dd {
   gap: 12px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .provider-actions {
@@ -719,7 +741,7 @@ dd {
   border-radius: 999px;
   background: #f2f5f9;
   color: var(--muted);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .setup-step.done > span {
@@ -758,7 +780,7 @@ dd {
 
 .version-box {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
   margin: 12px 0;
 }
@@ -773,13 +795,14 @@ dd {
   display: block;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .version-box strong {
   display: block;
   margin-top: 4px;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .version-box.success div:first-child {
