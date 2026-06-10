@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from app.config import settings
 from app.crypto import decrypt_secret, encrypt_secret, is_encrypted
+from app.currency import fetch_cbr_rates, rates_from_string, rates_to_string, today_label
 from app.db import connect
 from app.models import (
     HostingAccount,
@@ -271,6 +272,67 @@ def provider_expense_summary() -> list[dict[str, object]]:
     return sorted(rows, key=lambda row: float(row["amount"]), reverse=True)
 
 
+def currency_settings() -> dict[str, object]:
+    rates_text = get_effective_setting("currency_rates", settings.currency_rates)
+    return {
+        "base": get_effective_setting("currency_base", settings.currency_base).upper(),
+        "rates": rates_from_string(rates_text),
+        "rates_text": rates_text,
+        "updated_at": get_effective_setting(
+            "currency_rates_updated_at", settings.currency_rates_updated_at
+        ),
+    }
+
+
+def refresh_currency_rates() -> dict[str, object]:
+    rates = fetch_cbr_rates()
+    set_app_setting("currency_rates", rates_to_string(rates))
+    set_app_setting("currency_rates_updated_at", today_label())
+    if not get_app_setting("currency_base", ""):
+        set_app_setting("currency_base", "RUB")
+    return currency_settings()
+
+
+def save_currency_settings(base: str, rates_text: str) -> None:
+    set_app_setting("currency_base", base.strip().upper() or "RUB")
+    set_app_setting("currency_rates", rates_text.strip() or "RUB:1")
+    set_app_setting("currency_rates_updated_at", today_label())
+
+
+def monthly_plan_summary(servers: list[Server] | None = None) -> dict[str, object]:
+    servers = servers if servers is not None else list_servers()
+    by_currency: dict[str, float] = defaultdict(float)
+    for server in servers:
+        if server.billing_period_days <= 0:
+            continue
+        by_currency[server.currency] += server.amount / server.billing_period_days * 30
+
+    current_currency = currency_settings()
+    base = str(current_currency["base"])
+    rates = current_currency["rates"]
+    total_base = 0.0
+    missing: list[str] = []
+    for currency, amount in by_currency.items():
+        if currency == base:
+            total_base += amount
+        elif currency == "RUB" and base in rates and rates[base]:
+            total_base += amount / rates[base]
+        elif currency in rates and base == "RUB":
+            total_base += amount * rates[currency]
+        elif currency in rates and base in rates and rates[base]:
+            total_base += amount * rates[currency] / rates[base]
+        else:
+            missing.append(currency)
+
+    return {
+        "by_currency": dict(sorted(by_currency.items())),
+        "base": base,
+        "total_base": total_base,
+        "missing": sorted(set(missing)),
+        "rates_updated_at": current_currency["updated_at"],
+    }
+
+
 SECRET_SETTING_KEYS = {"telegram_bot_token"}
 
 
@@ -314,6 +376,11 @@ def notification_settings() -> dict[str, str]:
         "base_url": get_effective_setting("base_url", settings.base_url),
         "backup_interval_days": get_effective_setting(
             "backup_interval_days", str(settings.backup_interval_days)
+        ),
+        "currency_base": get_effective_setting("currency_base", settings.currency_base),
+        "currency_rates": get_effective_setting("currency_rates", settings.currency_rates),
+        "currency_rates_updated_at": get_effective_setting(
+            "currency_rates_updated_at", settings.currency_rates_updated_at
         ),
     }
 

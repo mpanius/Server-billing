@@ -236,6 +236,46 @@ h2 {
   padding: 12px;
 }
 
+.onboarding {
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 16px;
+}
+
+.onboarding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.onboarding-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.onboarding-item span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 999px;
+  background: #f2f5f9;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.onboarding-item.done span {
+  background: #e8f6f1;
+  color: var(--green);
+}
+
 .filter-bar form {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 190px 170px auto auto;

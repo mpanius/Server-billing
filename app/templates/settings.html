@@ -32,6 +32,11 @@
 {% elif request.query_params.get("password") == "invalid-new" %}
 <div class="notice">Новый пароль должен быть не короче 8 символов и совпадать с повтором.</div>
 {% endif %}
+{% if rates == "1" %}
+<div class="notice success">Курсы ЦБ РФ обновлены.</div>
+{% elif rates == "0" %}
+<div class="notice">Не удалось обновить курсы ЦБ РФ.</div>
+{% endif %}
 
 <section class="settings-grid">
   <form class="panel" method="post" action="/settings">
@@ -64,6 +69,14 @@
         Backup в Telegram, дней
         <input type="number" min="0" name="backup_interval_days" value="{{ notification.backup_interval_days }}">
       </label>
+      <label>
+        Базовая валюта
+        <input name="currency_base" value="{{ currency.base }}" placeholder="RUB">
+      </label>
+      <label class="wide">
+        Курсы к RUB
+        <input name="currency_rates" value="{{ currency.rates }}" placeholder="USD:90,EUR:98,RUB:1">
+      </label>
     </div>
     <div class="form-actions">
       <button class="primary" type="submit">Сохранить</button>
@@ -85,6 +98,10 @@
     <form method="post" action="/settings/reminders/run">
       <button class="secondary" type="submit">Проверить уведомления сейчас</button>
     </form>
+    <form method="post" action="/settings/currency/refresh">
+      <button class="secondary" type="submit">Обновить курсы ЦБ РФ</button>
+    </form>
+    <p class="muted">Курсы обновлены: {{ currency.updated_at or "нет данных" }}</p>
   </aside>
 
   <aside class="panel">

@@ -23,9 +23,13 @@ from app.repository import (
     list_servers,
     mark_paid,
     monthly_expense_summary,
+    monthly_plan_summary,
     notification_settings,
     provider_expense_summary,
+    refresh_currency_rates,
+    save_currency_settings,
     save_notification_settings,
+    set_app_setting,
     seed_demo_data,
     update_account,
     update_server,
@@ -157,10 +161,22 @@ def dashboard(
     all_servers = list_servers()
     servers = list_servers(search=q, provider=provider, payment_state=state)
     accounts = list_accounts()
-    total_monthly = sum(server.amount for server in all_servers if server.currency == "RUB")
+    monthly_plan = monthly_plan_summary(all_servers)
     due_7 = [server for server in all_servers if server.days_left <= 7]
     overdue = [server for server in all_servers if server.days_left < 0]
     providers = sorted({server.provider for server in all_servers})
+    current_notifications = notification_settings()
+    onboarding = [
+        {"label": "Создать аккаунт хостинга", "done": bool(accounts), "href": "/accounts"},
+        {"label": "Добавить первый сервер", "done": bool(all_servers), "href": "/"},
+        {
+            "label": "Настроить Telegram",
+            "done": bool(current_notifications.get("telegram_bot_token") and current_notifications.get("telegram_chat_id")),
+            "href": "/settings",
+        },
+        {"label": "Проверить backup", "done": bool(current_notifications.get("backup_interval_days")), "href": "/settings"},
+        {"label": "Проверить адрес сервиса", "done": bool(current_notifications.get("base_url")), "href": "/domain"},
+    ]
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -169,12 +185,14 @@ def dashboard(
             "accounts": accounts,
             "providers": providers,
             "filters": {"q": q, "provider": provider, "state": state},
+            "monthly_plan": monthly_plan,
+            "onboarding": onboarding,
             "today": date.today(),
             "stats": {
                 "total": len(servers),
                 "due_7": len(due_7),
                 "overdue": len(overdue),
-                "monthly_rub": total_monthly,
+                "monthly_rub": monthly_plan["total_base"],
             },
         },
     )
@@ -347,11 +365,17 @@ def settings_page(request: Request, saved: str = "", tested: str = "") -> HTMLRe
             "request": request,
             "settings": settings,
             "notification": current,
+            "currency": {
+                "base": current.get("currency_base", "RUB"),
+                "rates": current.get("currency_rates", "RUB:1"),
+                "updated_at": current.get("currency_rates_updated_at", ""),
+            },
             "token_configured": bool(current.get("telegram_bot_token")),
             "saved": saved,
             "tested": tested,
             "backup_sent": request.query_params.get("backup_sent", ""),
             "checked": request.query_params.get("checked", ""),
+            "rates": request.query_params.get("rates", ""),
         },
     )
 
@@ -364,6 +388,8 @@ def save_settings(
     check_interval_seconds: int = Form(86400),
     base_url: str = Form(""),
     backup_interval_days: int = Form(7),
+    currency_base: str = Form("RUB"),
+    currency_rates: str = Form("RUB:1"),
 ) -> RedirectResponse:
     save_notification_settings(
         telegram_bot_token=telegram_bot_token,
@@ -373,7 +399,18 @@ def save_settings(
         base_url=base_url,
         backup_interval_days=backup_interval_days,
     )
+    save_currency_settings(currency_base, currency_rates)
     return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+@app.post("/settings/currency/refresh")
+def refresh_rates() -> RedirectResponse:
+    try:
+        refresh_currency_rates()
+        result = "1"
+    except Exception:
+        result = "0"
+    return RedirectResponse(f"/settings?rates={result}", status_code=303)
 
 
 @app.post("/settings/telegram/test")
@@ -413,24 +450,7 @@ def change_password(
         return RedirectResponse("/settings?password=bad-current", status_code=303)
     if len(new_password) < 8 or new_password != new_password_repeat:
         return RedirectResponse("/settings?password=invalid-new", status_code=303)
-    env_path = ".env"
-    lines: list[str] = []
-    written = False
-    try:
-        with open(env_path, "r", encoding="utf-8") as file:
-            source_lines = file.read().splitlines()
-    except FileNotFoundError:
-        source_lines = []
-    for line in source_lines:
-        if line.startswith("ADMIN_PASSWORD_HASH="):
-            lines.append("ADMIN_PASSWORD_HASH=" + hash_password(new_password))
-            written = True
-        else:
-            lines.append(line)
-    if not written:
-        lines.append("ADMIN_PASSWORD_HASH=" + hash_password(new_password))
-    with open(env_path, "w", encoding="utf-8") as file:
-        file.write("\n".join(lines) + "\n")
+    set_app_setting("admin_password_hash", hash_password(new_password))
     return RedirectResponse("/settings?password=changed", status_code=303)
 
 
@@ -444,6 +464,31 @@ def analytics_page(request: Request) -> HTMLResponse:
             "providers": provider_expense_summary(),
         },
     )
+
+
+@app.get("/domain", response_class=HTMLResponse)
+def domain_page(request: Request) -> HTMLResponse:
+    current = notification_settings()
+    host = request.url.hostname or ""
+    server_ip = settings.server_ip
+    return templates.TemplateResponse(
+        "domain.html",
+        {
+            "request": request,
+            "base_url": current.get("base_url", settings.base_url),
+            "server_ip": server_ip,
+            "current_host": host,
+            "saved": request.query_params.get("saved", ""),
+        },
+    )
+
+
+@app.post("/domain")
+def save_domain(domain: str = Form("")) -> RedirectResponse:
+    domain = domain.strip().replace("https://", "").replace("http://", "").strip("/")
+    if domain:
+        set_app_setting("base_url", f"https://{domain}")
+    return RedirectResponse("/domain?saved=1", status_code=303)
 
 
 @app.get("/servers/{server_id}/pay", response_class=HTMLResponse)

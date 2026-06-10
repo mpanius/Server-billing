@@ -11,6 +11,7 @@ import time
 from fastapi import Request
 
 from app.config import settings
+from app.db import connect
 
 COOKIE_NAME = "sb_session"
 SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
@@ -51,7 +52,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
 
 def auth_enabled() -> bool:
-    return bool(settings.admin_password_hash.strip() and session_secret())
+    return bool(admin_password_hash().strip() and session_secret())
 
 
 def session_secret() -> str:
@@ -112,5 +113,18 @@ def is_authenticated(request: Request) -> bool:
 def check_login(username: str, password: str) -> bool:
     return (
         username == settings.admin_username
-        and verify_password(password, settings.admin_password_hash)
+        and verify_password(password, admin_password_hash())
     )
+
+
+def admin_password_hash() -> str:
+    try:
+        with connect() as connection:
+            row = connection.execute(
+                "SELECT value FROM app_settings WHERE key = 'admin_password_hash'"
+            ).fetchone()
+        if row and row["value"]:
+            return row["value"]
+    except Exception:
+        pass
+    return settings.admin_password_hash

@@ -22,8 +22,26 @@
     <strong>{{ stats.overdue }}</strong>
   </div>
   <div>
-    <span>Сумма в RUB</span>
-    <strong>{{ "%g"|format(stats.monthly_rub) }}</strong>
+    <span>План / мес, {{ monthly_plan.base }}</span>
+    <strong>{{ "%g"|format(monthly_plan.total_base) }}</strong>
+    {% if monthly_plan.missing %}
+    <small>Нет курса: {{ monthly_plan.missing|join(", ") }}</small>
+    {% endif %}
+  </div>
+</section>
+
+<section class="onboarding">
+  <div class="panel-head">
+    <h2>Быстрый старт</h2>
+    <span>{{ onboarding|selectattr("done")|list|length }} / {{ onboarding|length }}</span>
+  </div>
+  <div class="onboarding-grid">
+    {% for item in onboarding %}
+    <a class="onboarding-item {{ 'done' if item.done else '' }}" href="{{ item.href }}">
+      <span>{{ "✓" if item.done else "·" }}</span>
+      <strong>{{ item.label }}</strong>
+    </a>
+    {% endfor %}
   </div>
 </section>
 

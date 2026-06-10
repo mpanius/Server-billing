@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Caddy и HTTPS</p>
+    <h1>Подключение домена</h1>
+  </div>
+</section>
+
+{% if saved %}
+<div class="notice success">Base URL сохранен для ссылок в Telegram. Caddy нужно обновить командой ниже.</div>
+{% endif %}
+
+<section class="settings-grid">
+  <form class="panel" method="post" action="/domain">
+    <div class="panel-head">
+      <h2>Свой домен</h2>
+      <span>{{ server_ip }}</span>
+    </div>
+    <p class="muted">Создайте DNS A-запись домена на IP сервера, затем сохраните домен здесь и выполните команду на сервере.</p>
+    <div class="form-grid">
+      <label class="wide">
+        Домен
+        <input name="domain" placeholder="billing.example.com">
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="primary" type="submit">Сохранить Base URL</button>
+    </div>
+  </form>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Текущий адрес</h2>
+      <span>Base URL</span>
+    </div>
+    <p class="muted">{{ base_url }}</p>
+    <p class="muted">Сейчас открыт хост: {{ current_host }}</p>
+  </aside>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Команда</h2>
+      <span>root</span>
+    </div>
+    <p class="muted">После DNS A-записи замените домен в `.env` и перезапустите Caddy.</p>
+    <code class="code-block">cd /opt/server-billing<br>nano .env<br># BASE_URL=https://billing.example.com<br># CADDY_SITE_ADDRESS=billing.example.com<br>docker compose -f docker-compose.prod.yml up -d --force-recreate caddy scheduler</code>
+  </aside>
+</section>
+{% endblock %}

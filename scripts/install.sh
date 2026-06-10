@@ -62,7 +62,7 @@ write_env() {
   local app_encryption_key="$6"
   local bot_token="$7"
   local chat_id="$8"
-  local base_url site_address server_ip
+  local base_url site_address server_ip currency_rates currency_rates_updated_at
 
   server_ip="$(curl -fsS --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"
 
@@ -73,6 +73,27 @@ write_env() {
     site_address="$server_ip.sslip.io"
     base_url="https://$site_address"
   fi
+
+  currency_rates="$(python3 - <<'PY'
+import urllib.request
+import xml.etree.ElementTree as ET
+try:
+    with urllib.request.urlopen('https://www.cbr.ru/scripts/XML_daily.asp', timeout=15) as response:
+        raw = response.read().decode('windows-1251')
+    root = ET.fromstring(raw)
+    rates = {'RUB': 1.0}
+    for item in root.findall('Valute'):
+        code = item.findtext('CharCode', '').strip().upper()
+        nominal = float(item.findtext('Nominal', '1').replace(',', '.'))
+        value = float(item.findtext('Value', '0').replace(',', '.'))
+        if code and nominal:
+            rates[code] = value / nominal
+    print(','.join(f'{code}:{rate:.8f}' for code, rate in sorted(rates.items())))
+except Exception:
+    print('RUB:1')
+PY
+)"
+  currency_rates_updated_at="$(date +%F)"
 
   umask 077
   cat > "$INSTALL_DIR/.env" <<EOF
@@ -91,6 +112,9 @@ TELEGRAM_CHAT_ID=$chat_id
 REMINDER_DAYS=7,3,1,0,-1
 CHECK_INTERVAL_SECONDS=86400
 BACKUP_INTERVAL_DAYS=7
+CURRENCY_BASE=RUB
+CURRENCY_RATES=$currency_rates
+CURRENCY_RATES_UPDATED_AT=$currency_rates_updated_at
 EOF
 }
 
