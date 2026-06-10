@@ -25,7 +25,7 @@ def hash_password(password: str, salt: bytes | None = None) -> str:
         salt,
         PBKDF2_ITERATIONS,
     )
-    return "pbkdf2_sha256${}${}${}".format(
+    return "pbkdf2_sha256:{}:{}:{}".format(
         PBKDF2_ITERATIONS,
         base64.urlsafe_b64encode(salt).decode("ascii"),
         base64.urlsafe_b64encode(digest).decode("ascii"),
@@ -34,7 +34,8 @@ def hash_password(password: str, salt: bytes | None = None) -> str:
 
 def verify_password(password: str, stored_hash: str) -> bool:
     try:
-        algorithm, iterations, salt, digest = stored_hash.split("$", 3)
+        separator = ":" if ":" in stored_hash else "$"
+        algorithm, iterations, salt, digest = stored_hash.split(separator, 3)
         if algorithm != "pbkdf2_sha256":
             return False
         actual = hashlib.pbkdf2_hmac(

@@ -117,7 +117,7 @@ password = os.environ["ADMIN_PASSWORD_INPUT"].encode()
 salt = os.urandom(16)
 iterations = 260_000
 digest = hashlib.pbkdf2_hmac("sha256", password, salt, iterations)
-print("pbkdf2_sha256${}${}${}".format(
+print("pbkdf2_sha256:{}:{}:{}".format(
     iterations,
     base64.urlsafe_b64encode(salt).decode(),
     base64.urlsafe_b64encode(digest).decode(),
