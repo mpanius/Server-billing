@@ -4,10 +4,12 @@ from urllib.parse import quote_plus
 
 from app.config import settings
 from app.models import Server
+from app.repository import get_effective_setting
 
 
 def build_payment_deeplink(server: Server) -> str:
-    return f"{settings.base_url.rstrip('/')}/servers/{server.id}/pay"
+    base_url = get_effective_setting("base_url", settings.base_url).rstrip("/")
+    return f"{base_url}/servers/{server.id}/pay"
 
 
 def build_reminder_text(server: Server) -> str:

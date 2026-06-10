@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from sqlite3 import Row
 
+from app.crypto import decrypt_secret
+
 
 @dataclass(frozen=True)
 class HostingAccount:
@@ -17,6 +19,21 @@ class HostingAccount:
     notes: str
     created_at: str
     updated_at: str
+
+
+@dataclass(frozen=True)
+class PaymentHistoryItem:
+    id: int
+    server_id: int
+    server_name: str
+    provider: str
+    amount: float
+    currency: str
+    paid_at: date
+    previous_next_payment_date: date
+    next_payment_date: date
+    note: str
+    created_at: str
 
 
 @dataclass(frozen=True)
@@ -91,7 +108,7 @@ def account_from_row(row: Row) -> HostingAccount:
         name=row["name"],
         provider=row["provider"],
         login=row["login"] or "",
-        auth_secret=row["auth_secret"] or "",
+        auth_secret=decrypt_secret(row["auth_secret"] or ""),
         panel_url=row["panel_url"] or "",
         payment_url=row["payment_url"] or "",
         notes=row["notes"] or "",
@@ -121,7 +138,23 @@ def server_from_row(row: Row) -> Server:
         last_paid_at=row["last_paid_at"] or "",
         account_name=str(row_value(row, "account_name", "") or ""),
         account_login=str(row_value(row, "account_login", "") or ""),
-        account_secret=str(row_value(row, "account_secret", "") or ""),
+        account_secret=decrypt_secret(str(row_value(row, "account_secret", "") or "")),
         account_panel_url=str(row_value(row, "account_panel_url", "") or ""),
         account_payment_url=str(row_value(row, "account_payment_url", "") or ""),
+    )
+
+
+def payment_history_from_row(row: Row) -> PaymentHistoryItem:
+    return PaymentHistoryItem(
+        id=row["id"],
+        server_id=row["server_id"],
+        server_name=row["server_name"],
+        provider=row["provider"],
+        amount=float(row["amount"] or 0),
+        currency=row["currency"],
+        paid_at=parse_date(row["paid_at"]),
+        previous_next_payment_date=parse_date(row["previous_next_payment_date"]),
+        next_payment_date=parse_date(row["next_payment_date"]),
+        note=row["note"] or "",
+        created_at=row["created_at"],
     )

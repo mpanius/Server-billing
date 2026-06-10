@@ -2,8 +2,17 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from app.config import settings
+from app.crypto import decrypt_secret, encrypt_secret, is_encrypted
 from app.db import connect
-from app.models import HostingAccount, Server, account_from_row, server_from_row
+from app.models import (
+    HostingAccount,
+    PaymentHistoryItem,
+    Server,
+    account_from_row,
+    payment_history_from_row,
+    server_from_row,
+)
 
 
 SERVER_SELECT = """
@@ -47,7 +56,7 @@ def create_account(data: dict[str, object]) -> int:
                 data["name"],
                 data["provider"],
                 data.get("login", ""),
-                data.get("auth_secret", ""),
+                encrypt_secret(str(data.get("auth_secret", ""))),
                 data.get("panel_url", ""),
                 data.get("payment_url", ""),
                 data.get("notes", ""),
@@ -69,7 +78,7 @@ def update_account(account_id: int, data: dict[str, object]) -> None:
                 data["name"],
                 data["provider"],
                 data.get("login", ""),
-                data.get("auth_secret", ""),
+                encrypt_secret(str(data.get("auth_secret", ""))),
                 data.get("panel_url", ""),
                 data.get("payment_url", ""),
                 data.get("notes", ""),
@@ -87,12 +96,40 @@ def delete_account(account_id: int) -> None:
         connection.execute("DELETE FROM hosting_accounts WHERE id = ?", (account_id,))
 
 
-def list_servers() -> list[Server]:
+def list_servers(
+    search: str = "",
+    provider: str = "",
+    payment_state: str = "",
+) -> list[Server]:
     with connect() as connection:
         rows = connection.execute(
             f"{SERVER_SELECT} ORDER BY servers.next_payment_date ASC, servers.provider ASC, servers.name ASC"
         ).fetchall()
-    return [server_from_row(row) for row in rows]
+    servers = [server_from_row(row) for row in rows]
+    search = search.strip().lower()
+    provider = provider.strip()
+    payment_state = payment_state.strip()
+    if search:
+        servers = [
+            server
+            for server in servers
+            if search
+            in " ".join(
+                [
+                    server.name,
+                    server.provider,
+                    server.ip_address,
+                    server.service_id,
+                    server.account_name,
+                    server.account_login,
+                ]
+            ).lower()
+        ]
+    if provider:
+        servers = [server for server in servers if server.provider == provider]
+    if payment_state:
+        servers = [server for server in servers if server.payment_state == payment_state]
+    return servers
 
 
 def get_server(server_id: int) -> Server | None:
@@ -163,12 +200,31 @@ def delete_server(server_id: int) -> None:
         connection.execute("DELETE FROM servers WHERE id = ?", (server_id,))
 
 
-def mark_paid(server_id: int) -> None:
+def mark_paid(server_id: int, note: str = "") -> None:
     server = get_server(server_id)
     if server is None:
         return
     next_date = max(server.next_payment_date, date.today()) + timedelta(days=server.billing_period_days)
     with connect() as connection:
+        connection.execute(
+            """
+            INSERT INTO payment_history (
+                server_id, server_name, provider, amount, currency, paid_at,
+                previous_next_payment_date, next_payment_date, note
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                server.id,
+                server.name,
+                server.provider,
+                server.amount,
+                server.currency,
+                date.today().isoformat(),
+                server.next_payment_date.isoformat(),
+                next_date.isoformat(),
+                note.strip(),
+            ),
+        )
         connection.execute(
             """
             UPDATE servers
@@ -177,6 +233,99 @@ def mark_paid(server_id: int) -> None:
             """,
             (next_date.isoformat(), date.today().isoformat(), server_id),
         )
+
+
+def list_payment_history(server_id: int | None = None) -> list[PaymentHistoryItem]:
+    query = "SELECT * FROM payment_history"
+    params: tuple[object, ...] = ()
+    if server_id is not None:
+        query += " WHERE server_id = ?"
+        params = (server_id,)
+    query += " ORDER BY paid_at DESC, created_at DESC"
+    with connect() as connection:
+        rows = connection.execute(query, params).fetchall()
+    return [payment_history_from_row(row) for row in rows]
+
+
+SECRET_SETTING_KEYS = {"telegram_bot_token"}
+
+
+def set_app_setting(key: str, value: str) -> None:
+    stored_value = encrypt_secret(value) if key in SECRET_SETTING_KEYS else value
+    with connect() as connection:
+        connection.execute(
+            """
+            INSERT INTO app_settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (key, stored_value),
+        )
+
+
+def get_app_setting(key: str, default: str = "") -> str:
+    with connect() as connection:
+        row = connection.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    if row is None:
+        return default
+    value = row["value"] or ""
+    return decrypt_secret(value) if key in SECRET_SETTING_KEYS else value
+
+
+def get_effective_setting(key: str, env_value: str = "") -> str:
+    value = get_app_setting(key, "")
+    return value if value != "" else env_value
+
+
+def notification_settings() -> dict[str, str]:
+    return {
+        "telegram_bot_token": get_effective_setting(
+            "telegram_bot_token", settings.telegram_bot_token
+        ),
+        "telegram_chat_id": get_effective_setting("telegram_chat_id", settings.telegram_chat_id),
+        "reminder_days": get_effective_setting("reminder_days", settings.reminder_days),
+        "check_interval_seconds": get_effective_setting(
+            "check_interval_seconds", str(settings.check_interval_seconds)
+        ),
+        "base_url": get_effective_setting("base_url", settings.base_url),
+    }
+
+
+def save_notification_settings(
+    telegram_bot_token: str,
+    telegram_chat_id: str,
+    reminder_days: str,
+    check_interval_seconds: int,
+    base_url: str,
+) -> None:
+    if telegram_bot_token.strip():
+        set_app_setting("telegram_bot_token", telegram_bot_token.strip())
+    set_app_setting("telegram_chat_id", telegram_chat_id.strip())
+    set_app_setting("reminder_days", reminder_days.strip() or "7,3,1,0,-1")
+    set_app_setting("check_interval_seconds", str(check_interval_seconds))
+    set_app_setting("base_url", base_url.strip() or settings.base_url)
+
+
+def encrypt_existing_secrets() -> None:
+    with connect() as connection:
+        rows = connection.execute("SELECT id, auth_secret FROM hosting_accounts").fetchall()
+        for row in rows:
+            value = row["auth_secret"] or ""
+            if value and not is_encrypted(value):
+                connection.execute(
+                    "UPDATE hosting_accounts SET auth_secret = ? WHERE id = ?",
+                    (encrypt_secret(value), row["id"]),
+                )
+        rows = connection.execute(
+            "SELECT key, value FROM app_settings WHERE key IN ('telegram_bot_token')"
+        ).fetchall()
+        for row in rows:
+            value = row["value"] or ""
+            if value and not is_encrypted(value):
+                connection.execute(
+                    "UPDATE app_settings SET value = ? WHERE key = ?",
+                    (encrypt_secret(value), row["key"]),
+                )
 
 
 def seed_demo_data() -> None:

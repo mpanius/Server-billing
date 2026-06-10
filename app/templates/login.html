@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход · Server Billing</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <form class="login-card" method="post" action="/login">
+      <span class="brand-mark">SB</span>
+      <h1>Server Billing</h1>
+      <p>Войдите в панель управления оплатами.</p>
+      {% if error %}
+      <div class="form-error">{{ error }}</div>
+      {% endif %}
+      <label>
+        Логин
+        <input name="username" autocomplete="username" required>
+      </label>
+      <label>
+        Пароль
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <button class="primary" type="submit">Войти</button>
+    </form>
+  </main>
+</body>
+</html>

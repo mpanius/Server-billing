@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Журнал</p>
+    <h1>История оплат</h1>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Сервер</th>
+          <th>Провайдер</th>
+          <th>Сумма</th>
+          <th>Период</th>
+          <th>Комментарий</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ item.paid_at.strftime("%d.%m.%Y") }}</td>
+          <td>{{ item.server_name }}</td>
+          <td>{{ item.provider }}</td>
+          <td>{{ "%g"|format(item.amount) }} {{ item.currency }}</td>
+          <td>{{ item.previous_next_payment_date.strftime("%d.%m.%Y") }} → {{ item.next_payment_date.strftime("%d.%m.%Y") }}</td>
+          <td>{{ item.note or "—" }}</td>
+        </tr>
+        {% else %}
+        <tr><td class="empty" colspan="6">История появится после первой отметки оплаты.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

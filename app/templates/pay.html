@@ -43,6 +43,7 @@
       <a class="primary disabled" aria-disabled="true">Ссылка не указана</a>
       {% endif %}
       <form method="post" action="/servers/{{ server.id }}/paid">
+        <input class="compact-input" name="note" placeholder="Комментарий к оплате">
         <button class="secondary" type="submit">Отметить оплачено</button>
       </form>
       <a class="secondary-link" href="{{ telegram_share_url }}" target="_blank" rel="noreferrer">Текст для Telegram</a>
@@ -58,6 +59,24 @@
       </dl>
     </section>
     {% endif %}
+    <section class="auth-box">
+      <div class="panel-head">
+        <h2>История оплат</h2>
+        <span>{{ history|length }}</span>
+      </div>
+      <div class="history-list">
+        {% for item in history %}
+        <div class="history-item">
+          <strong>{{ item.paid_at.strftime("%d.%m.%Y") }}</strong>
+          <span>{{ "%g"|format(item.amount) }} {{ item.currency }}</span>
+          <small>{{ item.previous_next_payment_date.strftime("%d.%m.%Y") }} → {{ item.next_payment_date.strftime("%d.%m.%Y") }}</small>
+          {% if item.note %}<p>{{ item.note }}</p>{% endif %}
+        </div>
+        {% else %}
+        <p class="muted">Оплат пока не отмечали.</p>
+        {% endfor %}
+      </div>
+    </section>
   </div>
 </section>
 {% endblock %}

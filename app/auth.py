@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import base64
+import hashlib
+import hmac
+import json
+import os
+import secrets
+import time
+
+from fastapi import Request
+
+from app.config import settings
+
+COOKIE_NAME = "sb_session"
+SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
+PBKDF2_ITERATIONS = 260_000
+
+
+def hash_password(password: str, salt: bytes | None = None) -> str:
+    salt = salt or os.urandom(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        PBKDF2_ITERATIONS,
+    )
+    return "pbkdf2_sha256${}${}${}".format(
+        PBKDF2_ITERATIONS,
+        base64.urlsafe_b64encode(salt).decode("ascii"),
+        base64.urlsafe_b64encode(digest).decode("ascii"),
+    )
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        algorithm, iterations, salt, digest = stored_hash.split("$", 3)
+        if algorithm != "pbkdf2_sha256":
+            return False
+        actual = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            base64.urlsafe_b64decode(salt.encode("ascii")),
+            int(iterations),
+        )
+        expected = base64.urlsafe_b64decode(digest.encode("ascii"))
+        return hmac.compare_digest(actual, expected)
+    except Exception:
+        return False
+
+
+def auth_enabled() -> bool:
+    return bool(settings.admin_password_hash.strip() and session_secret())
+
+
+def session_secret() -> str:
+    return settings.app_secret_key.strip()
+
+
+def sign_payload(payload: dict[str, object]) -> str:
+    body = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ).decode("ascii")
+    signature = hmac.new(
+        session_secret().encode("utf-8"),
+        body.encode("ascii"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{body}.{signature}"
+
+
+def verify_session_token(token: str) -> dict[str, object] | None:
+    if not auth_enabled() or "." not in token:
+        return None
+    body, signature = token.rsplit(".", 1)
+    expected = hmac.new(
+        session_secret().encode("utf-8"),
+        body.encode("ascii"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        return None
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(body.encode("ascii")))
+    except Exception:
+        return None
+    if int(payload.get("exp", 0)) < int(time.time()):
+        return None
+    return payload
+
+
+def create_session_token(username: str) -> str:
+    return sign_payload(
+        {
+            "sub": username,
+            "iat": int(time.time()),
+            "exp": int(time.time()) + SESSION_TTL_SECONDS,
+            "nonce": secrets.token_urlsafe(12),
+        }
+    )
+
+
+def is_authenticated(request: Request) -> bool:
+    if not auth_enabled():
+        return True
+    token = request.cookies.get(COOKIE_NAME, "")
+    payload = verify_session_token(token)
+    return bool(payload and payload.get("sub") == settings.admin_username)
+
+
+def check_login(username: str, password: str) -> bool:
+    return (
+        username == settings.admin_username
+        and verify_password(password, settings.admin_password_hash)
+    )

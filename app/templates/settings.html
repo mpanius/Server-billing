@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Конфигурация</p>
+    <h1>Настройки</h1>
+  </div>
+</section>
+
+{% if saved %}
+<div class="notice success">Настройки сохранены.</div>
+{% endif %}
+{% if tested == "1" %}
+<div class="notice success">Тестовое Telegram-сообщение отправлено.</div>
+{% elif tested == "0" %}
+<div class="notice">Не удалось отправить тест: проверь токен и chat id.</div>
+{% endif %}
+
+<section class="settings-grid">
+  <form class="panel" method="post" action="/settings">
+    <div class="panel-head">
+      <h2>Уведомления</h2>
+      <span>Telegram</span>
+    </div>
+    <div class="form-grid">
+      <label class="wide">
+        Base URL
+        <input name="base_url" value="{{ notification.base_url }}" placeholder="https://example.com">
+      </label>
+      <label class="wide">
+        Bot token
+        <input type="password" name="telegram_bot_token" placeholder="{{ 'токен задан, оставь пустым чтобы не менять' if token_configured else 'вставь токен бота' }}">
+      </label>
+      <label>
+        Chat ID
+        <input name="telegram_chat_id" value="{{ notification.telegram_chat_id }}" placeholder="647793683">
+      </label>
+      <label>
+        Дни напоминаний
+        <input name="reminder_days" value="{{ notification.reminder_days }}" placeholder="7,3,1,0,-1">
+      </label>
+      <label>
+        Интервал проверки, сек.
+        <input type="number" min="60" name="check_interval_seconds" value="{{ notification.check_interval_seconds }}">
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="primary" type="submit">Сохранить</button>
+    </div>
+  </form>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Проверка</h2>
+      <span>{{ "токен задан" if token_configured else "токен не задан" }}</span>
+    </div>
+    <p class="muted">Тест отправит короткое сообщение в текущий Telegram chat id.</p>
+    <form method="post" action="/settings/telegram/test">
+      <button class="secondary" type="submit">Отправить тест</button>
+    </form>
+  </aside>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Домен</h2>
+      <span>Caddy</span>
+    </div>
+    <p class="muted">Сейчас можно пользоваться адресом из Base URL. Для своего домена создайте DNS A-запись на IP сервера, затем поменяйте `BASE_URL` и `CADDY_SITE_ADDRESS` в `.env` и перезапустите Caddy.</p>
+    <code class="code-block">cd /opt/server-billing<br>docker compose -f docker-compose.prod.yml up -d --force-recreate caddy scheduler</code>
+  </aside>
+</section>
+{% endblock %}

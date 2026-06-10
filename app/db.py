@@ -43,6 +43,27 @@ CREATE TABLE IF NOT EXISTS servers (
     FOREIGN KEY (hosting_account_id) REFERENCES hosting_accounts(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS payment_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL,
+    server_name TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    amount REAL NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'RUB',
+    paid_at TEXT NOT NULL,
+    previous_next_payment_date TEXT NOT NULL,
+    next_payment_date TEXT NOT NULL,
+    note TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TRIGGER IF NOT EXISTS hosting_accounts_updated_at
 AFTER UPDATE ON hosting_accounts
 FOR EACH ROW
@@ -55,6 +76,13 @@ AFTER UPDATE ON servers
 FOR EACH ROW
 BEGIN
     UPDATE servers SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS app_settings_updated_at
+AFTER UPDATE ON app_settings
+FOR EACH ROW
+BEGIN
+    UPDATE app_settings SET updated_at = CURRENT_TIMESTAMP WHERE key = OLD.key;
 END;
 """
 

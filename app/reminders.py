@@ -10,14 +10,14 @@ from datetime import date
 from app.config import settings
 from app.db import connect
 from app.models import Server
-from app.repository import list_servers
+from app.repository import list_servers, notification_settings
 from app.telegram import build_payment_deeplink
 
 logger = logging.getLogger(__name__)
 
 
 def reminder_days() -> set[int]:
-    raw = getattr(settings, "reminder_days", "7,3,1,0")
+    raw = notification_settings().get("reminder_days", settings.reminder_days)
     days: set[int] = set()
     for value in raw.split(","):
         value = value.strip()
@@ -94,8 +94,9 @@ def build_message(server: Server) -> str:
 
 
 def send_telegram(text: str) -> bool:
-    token = settings.telegram_bot_token.strip()
-    chat_id = settings.telegram_chat_id.strip()
+    current_settings = notification_settings()
+    token = current_settings.get("telegram_bot_token", "").strip()
+    chat_id = current_settings.get("telegram_chat_id", "").strip()
     if not token or not chat_id:
         logger.info("Telegram token or chat id is empty; reminders are disabled.")
         return False
@@ -139,13 +140,13 @@ def send_due_reminders() -> int:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     logger.info("Reminder worker started.")
-    interval = int(getattr(settings, "check_interval_seconds", 86400))
     while True:
         try:
             sent = send_due_reminders()
             logger.info("Reminder check finished. Sent: %s. Date: %s", sent, date.today())
         except Exception:
             logger.exception("Reminder check failed.")
+        interval = int(notification_settings().get("check_interval_seconds", 86400))
         time.sleep(interval)
 
 

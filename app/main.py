@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.auth import COOKIE_NAME, check_login, create_session_token, is_authenticated
 from app.config import settings
 from app.db import init_db
 from app.repository import (
@@ -14,15 +15,20 @@ from app.repository import (
     create_server,
     delete_account,
     delete_server,
+    encrypt_existing_secrets,
     get_account,
     get_server,
+    list_payment_history,
     list_accounts,
     list_servers,
     mark_paid,
+    notification_settings,
+    save_notification_settings,
     seed_demo_data,
     update_account,
     update_server,
 )
+from app.reminders import send_telegram
 from app.telegram import build_telegram_share_url
 
 app = FastAPI(title=settings.app_name)
@@ -34,6 +40,59 @@ templates = Jinja2Templates(directory="app/templates")
 def startup() -> None:
     init_db()
     seed_demo_data()
+    encrypt_existing_secrets()
+
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    public_prefixes = ("/static/",)
+    public_paths = {"/login"}
+    if request.url.path not in public_paths and not request.url.path.startswith(public_prefixes):
+        if not is_authenticated(request):
+            return RedirectResponse("/login", status_code=303)
+    return await call_next(request)
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request) -> HTMLResponse:
+    if is_authenticated(request):
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse("login.html", {"request": request, "error": ""})
+
+
+@app.post("/login")
+def login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
+    if not check_login(username.strip(), password):
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": "Неверный логин или пароль"},
+            status_code=401,
+        )
+    response = RedirectResponse("/", status_code=303)
+    is_secure = (
+        request.url.scheme == "https"
+        or request.headers.get("x-forwarded-proto", "").lower() == "https"
+    )
+    response.set_cookie(
+        COOKIE_NAME,
+        create_session_token(username.strip()),
+        httponly=True,
+        secure=is_secure,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,
+    )
+    return response
+
+
+@app.post("/logout")
+def logout() -> RedirectResponse:
+    response = RedirectResponse("/login", status_code=303)
+    response.delete_cookie(COOKIE_NAME)
+    return response
 
 
 def form_payload(
@@ -87,13 +146,19 @@ def account_payload(
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request) -> HTMLResponse:
-    servers = list_servers()
+def dashboard(
+    request: Request,
+    q: str = "",
+    provider: str = "",
+    state: str = "",
+) -> HTMLResponse:
+    all_servers = list_servers()
+    servers = list_servers(search=q, provider=provider, payment_state=state)
     accounts = list_accounts()
-    total_monthly = sum(server.amount for server in servers if server.currency == "RUB")
-    due_7 = [server for server in servers if server.days_left <= 7]
-    overdue = [server for server in servers if server.days_left < 0]
-    providers = sorted({server.provider for server in servers})
+    total_monthly = sum(server.amount for server in all_servers if server.currency == "RUB")
+    due_7 = [server for server in all_servers if server.days_left <= 7]
+    overdue = [server for server in all_servers if server.days_left < 0]
+    providers = sorted({server.provider for server in all_servers})
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -101,6 +166,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "servers": servers,
             "accounts": accounts,
             "providers": providers,
+            "filters": {"q": q, "provider": provider, "state": state},
             "today": date.today(),
             "stats": {
                 "total": len(servers),
@@ -194,9 +260,9 @@ def save_server(
 
 
 @app.post("/servers/{server_id}/paid")
-def paid(server_id: int) -> RedirectResponse:
-    mark_paid(server_id)
-    return RedirectResponse("/", status_code=303)
+def paid(server_id: int, note: str = Form("")) -> RedirectResponse:
+    mark_paid(server_id, note=note)
+    return RedirectResponse(f"/servers/{server_id}/pay", status_code=303)
 
 
 @app.post("/servers/{server_id}/delete")
@@ -262,6 +328,57 @@ def remove_account(account_id: int) -> RedirectResponse:
     return RedirectResponse("/accounts", status_code=303)
 
 
+@app.get("/history", response_class=HTMLResponse)
+def history_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        "history.html",
+        {"request": request, "items": list_payment_history()},
+    )
+
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request, saved: str = "", tested: str = "") -> HTMLResponse:
+    current = notification_settings()
+    return templates.TemplateResponse(
+        "settings.html",
+        {
+            "request": request,
+            "settings": settings,
+            "notification": current,
+            "token_configured": bool(current.get("telegram_bot_token")),
+            "saved": saved,
+            "tested": tested,
+        },
+    )
+
+
+@app.post("/settings")
+def save_settings(
+    telegram_bot_token: str = Form(""),
+    telegram_chat_id: str = Form(""),
+    reminder_days: str = Form("7,3,1,0,-1"),
+    check_interval_seconds: int = Form(86400),
+    base_url: str = Form(""),
+) -> RedirectResponse:
+    save_notification_settings(
+        telegram_bot_token=telegram_bot_token,
+        telegram_chat_id=telegram_chat_id,
+        reminder_days=reminder_days,
+        check_interval_seconds=check_interval_seconds,
+        base_url=base_url,
+    )
+    return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+@app.post("/settings/telegram/test")
+def test_telegram() -> RedirectResponse:
+    try:
+        sent = send_telegram("Server Billing Manager: тестовое уведомление отправлено.")
+    except Exception:
+        sent = False
+    return RedirectResponse(f"/settings?tested={'1' if sent else '0'}", status_code=303)
+
+
 @app.get("/servers/{server_id}/pay", response_class=HTMLResponse)
 def pay_page(request: Request, server_id: int) -> HTMLResponse:
     server = get_server(server_id)
@@ -273,5 +390,6 @@ def pay_page(request: Request, server_id: int) -> HTMLResponse:
             "request": request,
             "server": server,
             "telegram_share_url": build_telegram_share_url(server),
+            "history": list_payment_history(server_id),
         },
     )

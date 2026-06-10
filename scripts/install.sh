@@ -34,11 +34,11 @@ prompt_secret() {
 install_packages() {
   if command -v apt-get >/dev/null 2>&1; then
     apt-get update
-    apt-get install -y ca-certificates curl git openssh-client
+    apt-get install -y ca-certificates curl git openssh-client python3
   elif command -v dnf >/dev/null 2>&1; then
-    dnf install -y ca-certificates curl git openssh-clients
+    dnf install -y ca-certificates curl git openssh-clients python3
   elif command -v yum >/dev/null 2>&1; then
-    yum install -y ca-certificates curl git openssh-clients
+    yum install -y ca-certificates curl git openssh-clients python3
   else
     echo "Unsupported Linux distribution. Install Docker, Docker Compose and Git manually."
     exit 1
@@ -56,8 +56,12 @@ install_docker() {
 write_env() {
   local domain="$1"
   local email="$2"
-  local bot_token="$3"
-  local chat_id="$4"
+  local admin_username="$3"
+  local admin_password_hash="$4"
+  local app_secret_key="$5"
+  local app_encryption_key="$6"
+  local bot_token="$7"
+  local chat_id="$8"
   local base_url site_address server_ip
 
   server_ip="$(curl -fsS --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"
@@ -78,6 +82,10 @@ BASE_URL=$base_url
 SERVER_IP=$server_ip
 CADDY_SITE_ADDRESS=$site_address
 CADDY_EMAIL=$email
+APP_SECRET_KEY=$app_secret_key
+APP_ENCRYPTION_KEY=$app_encryption_key
+ADMIN_USERNAME=$admin_username
+ADMIN_PASSWORD_HASH=$admin_password_hash
 TELEGRAM_BOT_TOKEN=$bot_token
 TELEGRAM_CHAT_ID=$chat_id
 REMINDER_DAYS=7,3,1,0,-1
@@ -88,12 +96,44 @@ EOF
 main() {
   echo "Server Billing Manager installer"
   echo
-  local domain email bot_token chat_id
+  local domain email admin_username admin_password admin_password_repeat admin_password_hash app_secret_key app_encryption_key bot_token chat_id
   domain="$(prompt 'Domain for HTTPS, leave empty to use automatic IP.sslip.io HTTPS' '')"
   email=""
   if [ -n "$domain" ]; then
     email="$(prompt 'Email for Lets Encrypt notifications' '')"
   fi
+  admin_username="$(prompt 'Admin login' 'admin')"
+  while true; do
+    admin_password="$(prompt_secret 'Admin password')"
+    admin_password_repeat="$(prompt_secret 'Repeat admin password')"
+    if [ -n "$admin_password" ] && [ "$admin_password" = "$admin_password_repeat" ]; then
+      break
+    fi
+    echo "Passwords are empty or do not match. Try again."
+  done
+  admin_password_hash="$(ADMIN_PASSWORD_INPUT="$admin_password" python3 - <<'PY'
+import base64, hashlib, os
+password = os.environ["ADMIN_PASSWORD_INPUT"].encode()
+salt = os.urandom(16)
+iterations = 260_000
+digest = hashlib.pbkdf2_hmac("sha256", password, salt, iterations)
+print("pbkdf2_sha256${}${}${}".format(
+    iterations,
+    base64.urlsafe_b64encode(salt).decode(),
+    base64.urlsafe_b64encode(digest).decode(),
+))
+PY
+)"
+  app_secret_key="$(python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(48))
+PY
+)"
+  app_encryption_key="$(python3 - <<'PY'
+import base64, os
+print(base64.urlsafe_b64encode(os.urandom(32)).decode())
+PY
+)"
   bot_token="$(prompt_secret 'Telegram bot token, leave empty to disable reminders')"
   chat_id=""
   if [ -n "$bot_token" ]; then
@@ -110,7 +150,7 @@ main() {
     git clone "$REPO_URL" "$INSTALL_DIR"
   fi
 
-  write_env "$domain" "$email" "$bot_token" "$chat_id"
+  write_env "$domain" "$email" "$admin_username" "$admin_password_hash" "$app_secret_key" "$app_encryption_key" "$bot_token" "$chat_id"
 
   cd "$INSTALL_DIR"
   docker compose -f docker-compose.prod.yml up -d --build
@@ -118,6 +158,7 @@ main() {
   echo
   echo "Done."
   echo "Open: $(grep '^BASE_URL=' .env | cut -d= -f2-)"
+  echo "Login: $admin_username"
   echo "Project directory: $INSTALL_DIR"
   echo "Update later with: cd $INSTALL_DIR && git pull && docker compose -f docker-compose.prod.yml up -d --build"
 }
