@@ -1,3 +1,5 @@
+<img width="1865" height="901" alt="image" src="https://github.com/user-attachments/assets/1aa134bb-3187-4cd0-afc7-2cd82bdc45f3" />
+
 # Server Billing Manager
 
 Self-hosted панель для учета серверов, сроков оплаты и быстрых переходов к оплате у хостинг-провайдера.
