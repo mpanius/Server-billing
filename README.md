@@ -38,6 +38,8 @@ Self-hosted панель для учета серверов, сроков опл
 curl -fsSL https://raw.githubusercontent.com/AlekseyRusaleev/Server-billing/main/scripts/install.sh | sudo bash
 ```
 
+Команда рассчитана на запуск из обычной SSH-консоли: установщик интерактивно спрашивает пароль администратора, Telegram token и другие значения через терминал.
+
 Установщик спросит:
 
 - домен, если хотите использовать свой HTTPS-домен;

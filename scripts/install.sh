@@ -4,9 +4,16 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/AlekseyRusaleev/Server-billing.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/server-billing}"
 SERVICE_NAME="server-billing"
+TTY_PATH="/dev/tty"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run this installer as root: sudo bash install.sh"
+  exit 1
+fi
+
+if [ ! -r "$TTY_PATH" ] || [ ! -w "$TTY_PATH" ]; then
+  echo "This installer needs an interactive terminal for passwords and tokens." >&2
+  echo "Run it from an SSH terminal, or download it first and start it with: sudo bash install.sh" >&2
   exit 1
 fi
 
@@ -15,10 +22,12 @@ prompt() {
   local default="${2:-}"
   local value
   if [ -n "$default" ]; then
-    read -r -p "$label [$default]: " value
+    printf "%s [%s]: " "$label" "$default" > "$TTY_PATH"
+    read -r value < "$TTY_PATH"
     echo "${value:-$default}"
   else
-    read -r -p "$label: " value
+    printf "%s: " "$label" > "$TTY_PATH"
+    read -r value < "$TTY_PATH"
     echo "$value"
   fi
 }
@@ -26,8 +35,9 @@ prompt() {
 prompt_secret() {
   local label="$1"
   local value
-  read -r -s -p "$label: " value
-  echo
+  printf "%s: " "$label" > "$TTY_PATH"
+  read -r -s value < "$TTY_PATH"
+  echo > "$TTY_PATH"
   echo "$value"
 }
 
