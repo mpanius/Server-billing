@@ -79,7 +79,7 @@
       <span>{{ providers|length }} провайдеров</span>
     </div>
     <div class="table-wrap">
-      <table>
+      <table class="server-table">
         <thead>
           <tr>
             <th>Сервер</th>
@@ -94,20 +94,20 @@
         <tbody>
           {% for server in servers %}
           <tr>
-            <td>
+            <td data-label="Сервер">
               <strong>{{ server.name }}</strong>
               <small>{{ server.ip_address or "IP не указан" }}</small>
               {% if server.location %}<small>{{ server.location }}</small>{% endif %}
             </td>
-            <td>
+            <td data-label="Провайдер">
               {{ server.provider }}
               <small>{{ server.service_id or "без ID" }}</small>
             </td>
-            <td>
+            <td data-label="Аккаунт">
               {{ server.account_name or "не привязан" }}
               <small>{{ server.account_login or server.server_login or "логин не указан" }}</small>
             </td>
-            <td>
+            <td data-label="Оплата">
               {{ server.next_payment_date.strftime("%d.%m.%Y") }}
               <small>
                 {% if server.days_left < 0 %}
@@ -119,9 +119,9 @@
                 {% endif %}
               </small>
             </td>
-            <td>{{ "%g"|format(server.amount) }} {{ server.currency }}</td>
-            <td><span class="badge {{ server.payment_state }}">{{ server.payment_label }}</span></td>
-            <td class="actions">
+            <td data-label="Сумма">{{ "%g"|format(server.amount) }} {{ server.currency }}</td>
+            <td data-label="Статус"><span class="badge {{ server.payment_state }}">{{ server.payment_label }}</span></td>
+            <td class="actions" data-label="Действия">
               <div class="action-buttons">
                 <a class="icon-link" href="/servers/{{ server.id }}/pay" title="Открыть оплату">Оплата</a>
                 <a class="icon-link ghost" href="/servers/{{ server.id }}/edit" title="Редактировать">Правка</a>
