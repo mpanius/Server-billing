@@ -1,0 +1,284 @@
+from __future__ import annotations
+
+from datetime import date, timedelta
+
+from app.db import connect
+from app.models import HostingAccount, Server, account_from_row, server_from_row
+
+
+SERVER_SELECT = """
+SELECT
+    servers.*,
+    hosting_accounts.name AS account_name,
+    hosting_accounts.login AS account_login,
+    hosting_accounts.auth_secret AS account_secret,
+    hosting_accounts.panel_url AS account_panel_url,
+    hosting_accounts.payment_url AS account_payment_url
+FROM servers
+LEFT JOIN hosting_accounts ON hosting_accounts.id = servers.hosting_account_id
+"""
+
+
+def list_accounts() -> list[HostingAccount]:
+    with connect() as connection:
+        rows = connection.execute(
+            "SELECT * FROM hosting_accounts ORDER BY provider ASC, name ASC"
+        ).fetchall()
+    return [account_from_row(row) for row in rows]
+
+
+def get_account(account_id: int) -> HostingAccount | None:
+    with connect() as connection:
+        row = connection.execute(
+            "SELECT * FROM hosting_accounts WHERE id = ?", (account_id,)
+        ).fetchone()
+    return account_from_row(row) if row else None
+
+
+def create_account(data: dict[str, object]) -> int:
+    with connect() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO hosting_accounts (
+                name, provider, login, auth_secret, panel_url, payment_url, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["name"],
+                data["provider"],
+                data.get("login", ""),
+                data.get("auth_secret", ""),
+                data.get("panel_url", ""),
+                data.get("payment_url", ""),
+                data.get("notes", ""),
+            ),
+        )
+        return int(cursor.lastrowid)
+
+
+def update_account(account_id: int, data: dict[str, object]) -> None:
+    with connect() as connection:
+        connection.execute(
+            """
+            UPDATE hosting_accounts
+            SET name = ?, provider = ?, login = ?, auth_secret = ?,
+                panel_url = ?, payment_url = ?, notes = ?
+            WHERE id = ?
+            """,
+            (
+                data["name"],
+                data["provider"],
+                data.get("login", ""),
+                data.get("auth_secret", ""),
+                data.get("panel_url", ""),
+                data.get("payment_url", ""),
+                data.get("notes", ""),
+                account_id,
+            ),
+        )
+
+
+def delete_account(account_id: int) -> None:
+    with connect() as connection:
+        connection.execute(
+            "UPDATE servers SET hosting_account_id = NULL WHERE hosting_account_id = ?",
+            (account_id,),
+        )
+        connection.execute("DELETE FROM hosting_accounts WHERE id = ?", (account_id,))
+
+
+def list_servers() -> list[Server]:
+    with connect() as connection:
+        rows = connection.execute(
+            f"{SERVER_SELECT} ORDER BY servers.next_payment_date ASC, servers.provider ASC, servers.name ASC"
+        ).fetchall()
+    return [server_from_row(row) for row in rows]
+
+
+def get_server(server_id: int) -> Server | None:
+    with connect() as connection:
+        row = connection.execute(
+            f"{SERVER_SELECT} WHERE servers.id = ?", (server_id,)
+        ).fetchone()
+    return server_from_row(row) if row else None
+
+
+def create_server(data: dict[str, object]) -> int:
+    with connect() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO servers (
+                hosting_account_id, name, provider, ip_address, service_id, amount, currency,
+                billing_period_days, next_payment_date, payment_url, panel_url, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data.get("hosting_account_id"),
+                data["name"],
+                data["provider"],
+                data.get("ip_address", ""),
+                data.get("service_id", ""),
+                data["amount"],
+                data["currency"],
+                data["billing_period_days"],
+                data["next_payment_date"],
+                data.get("payment_url", ""),
+                data.get("panel_url", ""),
+                data.get("notes", ""),
+            ),
+        )
+        return int(cursor.lastrowid)
+
+
+def update_server(server_id: int, data: dict[str, object]) -> None:
+    with connect() as connection:
+        connection.execute(
+            """
+            UPDATE servers
+            SET hosting_account_id = ?, name = ?, provider = ?, ip_address = ?, service_id = ?, amount = ?,
+                currency = ?, billing_period_days = ?, next_payment_date = ?,
+                payment_url = ?, panel_url = ?, notes = ?
+            WHERE id = ?
+            """,
+            (
+                data.get("hosting_account_id"),
+                data["name"],
+                data["provider"],
+                data.get("ip_address", ""),
+                data.get("service_id", ""),
+                data["amount"],
+                data["currency"],
+                data["billing_period_days"],
+                data["next_payment_date"],
+                data.get("payment_url", ""),
+                data.get("panel_url", ""),
+                data.get("notes", ""),
+                server_id,
+            ),
+        )
+
+
+def delete_server(server_id: int) -> None:
+    with connect() as connection:
+        connection.execute("DELETE FROM servers WHERE id = ?", (server_id,))
+
+
+def mark_paid(server_id: int) -> None:
+    server = get_server(server_id)
+    if server is None:
+        return
+    next_date = max(server.next_payment_date, date.today()) + timedelta(days=server.billing_period_days)
+    with connect() as connection:
+        connection.execute(
+            """
+            UPDATE servers
+            SET next_payment_date = ?, last_paid_at = ?, status = 'active'
+            WHERE id = ?
+            """,
+            (next_date.isoformat(), date.today().isoformat(), server_id),
+        )
+
+
+def seed_demo_data() -> None:
+    with connect() as connection:
+        server_count = connection.execute("SELECT COUNT(*) FROM servers").fetchone()[0]
+        account_count = connection.execute("SELECT COUNT(*) FROM hosting_accounts").fetchone()[0]
+
+    demo_accounts = [
+        {
+            "name": "OnlineVDS основной",
+            "provider": "onlinevds.ru",
+            "login": "admin@example.com",
+            "auth_secret": "demo-password",
+            "panel_url": "https://onlinevds.ru/",
+            "payment_url": "https://onlinevds.ru/",
+            "notes": "Демо-доступ. В продакшене секреты нужно шифровать.",
+        },
+        {
+            "name": "Qwins",
+            "provider": "qwins.co",
+            "login": "billing@example.com",
+            "auth_secret": "demo-password",
+            "panel_url": "https://qwins.co/",
+            "payment_url": "https://qwins.co/",
+            "notes": "",
+        },
+        {
+            "name": "Hostoff",
+            "provider": "hostoff.net",
+            "login": "host@example.com",
+            "auth_secret": "demo-password",
+            "panel_url": "https://hostoff.net/",
+            "payment_url": "https://hostoff.net/",
+            "notes": "",
+        },
+    ]
+
+    if account_count == 0:
+        for account in demo_accounts:
+            create_account(account)
+
+    accounts_by_provider = {account.provider: account.id for account in list_accounts()}
+
+    with connect() as connection:
+        for provider, account_id in accounts_by_provider.items():
+            connection.execute(
+                """
+                UPDATE servers
+                SET hosting_account_id = ?
+                WHERE hosting_account_id IS NULL AND provider = ?
+                """,
+                (account_id, provider),
+            )
+
+    if server_count:
+        return
+
+    today = date.today()
+    samples = [
+        {
+            "name": "RDP Moscow 01",
+            "hosting_account_id": accounts_by_provider.get("onlinevds.ru"),
+            "provider": "onlinevds.ru",
+            "ip_address": "185.10.10.21",
+            "service_id": "vds-1021",
+            "amount": 950,
+            "currency": "RUB",
+            "billing_period_days": 30,
+            "next_payment_date": (today + timedelta(days=2)).isoformat(),
+            "payment_url": "https://onlinevds.ru/",
+            "panel_url": "https://onlinevds.ru/",
+            "notes": "Основной RDP для рабочих задач.",
+        },
+        {
+            "name": "Proxy Node 03",
+            "hosting_account_id": accounts_by_provider.get("qwins.co"),
+            "provider": "qwins.co",
+            "ip_address": "91.200.14.8",
+            "service_id": "q-7781",
+            "amount": 12,
+            "currency": "USD",
+            "billing_period_days": 30,
+            "next_payment_date": (today + timedelta(days=6)).isoformat(),
+            "payment_url": "https://qwins.co/",
+            "panel_url": "https://qwins.co/",
+            "notes": "",
+        },
+        {
+            "name": "Landing Host",
+            "hosting_account_id": accounts_by_provider.get("hostoff.net"),
+            "provider": "hostoff.net",
+            "ip_address": "77.77.33.10",
+            "service_id": "h-428",
+            "amount": 420,
+            "currency": "RUB",
+            "billing_period_days": 30,
+            "next_payment_date": (today + timedelta(days=18)).isoformat(),
+            "payment_url": "https://hostoff.net/",
+            "panel_url": "https://hostoff.net/",
+            "notes": "Можно заменить при следующем продлении.",
+        },
+    ]
+
+    for sample in samples:
+        create_server(sample)

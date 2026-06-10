@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Server Billing Manager" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">SB</span>
+      <span>
+        <strong>Server Billing</strong>
+        <small>оплаты и продления</small>
+      </span>
+    </a>
+    <nav class="topnav">
+      <a href="/">Дашборд</a>
+      <a href="/accounts">Аккаунты</a>
+    </nav>
+  </header>
+  <main class="shell">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,42 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/server_billing.db
+    volumes:
+      - ./data:/app/data
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "app.reminders"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/server_billing.db
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - app
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

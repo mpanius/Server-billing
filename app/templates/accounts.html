@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Кабинеты провайдеров</p>
+    <h1>Аккаунты хостинга</h1>
+  </div>
+  <button class="primary" onclick="document.querySelector('#add-account').showModal()">+ Аккаунт</button>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Доступы и ссылки</h2>
+    <span>{{ accounts|length }} аккаунтов</span>
+  </div>
+  <p class="notice">Сейчас секреты хранятся локально в SQLite как часть MVP. Перед продажей сервиса этот слой нужно перевести на шифрование.</p>
+  <div class="account-grid">
+    {% for account in accounts %}
+    <article class="account-card">
+      <div>
+        <span class="account-provider">{{ account.provider }}</span>
+        <h2>{{ account.name }}</h2>
+      </div>
+      <dl>
+        <div><dt>Логин</dt><dd>{{ account.login or "не указан" }}</dd></div>
+        <div><dt>Секрет</dt><dd>{{ "задан" if account.auth_secret else "не задан" }}</dd></div>
+      </dl>
+      <div class="account-actions">
+        {% if account.panel_url %}
+        <a class="secondary-link" href="{{ account.panel_url }}" target="_blank" rel="noreferrer">Кабинет</a>
+        {% endif %}
+        {% if account.payment_url %}
+        <a class="secondary-link" href="{{ account.payment_url }}" target="_blank" rel="noreferrer">Оплата</a>
+        {% endif %}
+        <a class="icon-link ghost" href="/accounts/{{ account.id }}/edit">Правка</a>
+      </div>
+    </article>
+    {% else %}
+    <p class="empty">Добавь первый кабинет хостинга, чтобы привязывать к нему серверы.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<dialog id="add-account" class="modal">
+  <form method="post" action="/accounts">
+    <div class="modal-head">
+      <h2>Новый аккаунт</h2>
+      <button type="button" class="plain" onclick="this.closest('dialog').close()">×</button>
+    </div>
+    {% set account = none %}
+    {% include "_account_form.html" %}
+    <div class="form-actions">
+      <button type="button" class="secondary" onclick="this.closest('dialog').close()">Отмена</button>
+      <button class="primary" type="submit">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

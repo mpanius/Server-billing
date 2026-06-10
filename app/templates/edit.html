@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Редактирование</p>
+    <h1>{{ server.name }}</h1>
+  </div>
+  <a class="secondary-link" href="/">Назад</a>
+</section>
+
+<section class="panel narrow">
+  <form method="post" action="/servers/{{ server.id }}/edit">
+    {% include "_form.html" %}
+    <div class="form-actions split">
+      <button class="primary" type="submit">Сохранить</button>
+    </div>
+  </form>
+  <form method="post" action="/servers/{{ server.id }}/delete" onsubmit="return confirm('Удалить сервер?')">
+    <button class="danger" type="submit">Удалить</button>
+  </form>
+</section>
+{% endblock %}

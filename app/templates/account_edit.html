@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Редактирование аккаунта</p>
+    <h1>{{ account.name }}</h1>
+  </div>
+  <a class="secondary-link" href="/accounts">Назад</a>
+</section>
+
+<section class="panel narrow">
+  <form method="post" action="/accounts/{{ account.id }}/edit">
+    {% include "_account_form.html" %}
+    <div class="form-actions split">
+      <button class="primary" type="submit">Сохранить</button>
+    </div>
+  </form>
+  <form method="post" action="/accounts/{{ account.id }}/delete" onsubmit="return confirm('Удалить аккаунт? Серверы останутся, но будут отвязаны.')">
+    <button class="danger" type="submit">Удалить</button>
+  </form>
+</section>
+{% endblock %}

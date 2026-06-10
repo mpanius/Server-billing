@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Локальный MVP</p>
+    <h1>Контроль оплат серверов</h1>
+  </div>
+  <button class="primary" onclick="document.querySelector('#add-server').showModal()">+ Сервер</button>
+</section>
+
+<section class="stats">
+  <div>
+    <span>Всего серверов</span>
+    <strong>{{ stats.total }}</strong>
+  </div>
+  <div>
+    <span>Оплата до 7 дней</span>
+    <strong>{{ stats.due_7 }}</strong>
+  </div>
+  <div>
+    <span>Просрочено</span>
+    <strong>{{ stats.overdue }}</strong>
+  </div>
+  <div>
+    <span>Сумма в RUB</span>
+    <strong>{{ "%g"|format(stats.monthly_rub) }}</strong>
+  </div>
+</section>
+
+<section class="layout">
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Серверы</h2>
+      <span>{{ providers|length }} провайдеров</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Сервер</th>
+            <th>Провайдер</th>
+            <th>Аккаунт</th>
+            <th>Оплата</th>
+            <th>Сумма</th>
+            <th>Статус</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for server in servers %}
+          <tr>
+            <td>
+              <strong>{{ server.name }}</strong>
+              <small>{{ server.ip_address or "IP не указан" }}</small>
+            </td>
+            <td>
+              {{ server.provider }}
+              <small>{{ server.service_id or "без ID" }}</small>
+            </td>
+            <td>
+              {{ server.account_name or "не привязан" }}
+              <small>{{ server.account_login or "логин не указан" }}</small>
+            </td>
+            <td>
+              {{ server.next_payment_date.strftime("%d.%m.%Y") }}
+              <small>
+                {% if server.days_left < 0 %}
+                  {{ -server.days_left }} дн. назад
+                {% elif server.days_left == 0 %}
+                  сегодня
+                {% else %}
+                  через {{ server.days_left }} дн.
+                {% endif %}
+              </small>
+            </td>
+            <td>{{ "%g"|format(server.amount) }} {{ server.currency }}</td>
+            <td><span class="badge {{ server.payment_state }}">{{ server.payment_label }}</span></td>
+            <td class="actions">
+              <a class="icon-link" href="/servers/{{ server.id }}/pay" title="Открыть оплату">Оплата</a>
+              <a class="icon-link ghost" href="/servers/{{ server.id }}/edit" title="Редактировать">Правка</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="empty">Добавь первый сервер, и здесь появится график оплат.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <aside class="panel side">
+    <div class="panel-head">
+      <h2>Ближайшие</h2>
+      <span>7 дней</span>
+    </div>
+    <div class="timeline">
+      {% for server in servers if server.days_left <= 7 %}
+      <a class="timeline-item {{ server.payment_state }}" href="/servers/{{ server.id }}/pay">
+        <span>{{ server.next_payment_date.strftime("%d.%m") }}</span>
+        <strong>{{ server.name }}</strong>
+        <small>{{ "%g"|format(server.amount) }} {{ server.currency }}</small>
+      </a>
+      {% else %}
+      <p class="muted">В ближайшую неделю оплат нет.</p>
+      {% endfor %}
+    </div>
+    <div class="account-summary">
+      <div class="panel-head compact">
+        <h2>Аккаунты</h2>
+        <span>{{ accounts|length }}</span>
+      </div>
+      {% for account in accounts[:4] %}
+      <a class="account-mini" href="/accounts/{{ account.id }}/edit">
+        <strong>{{ account.name }}</strong>
+        <small>{{ account.provider }} · {{ account.login or "без логина" }}</small>
+      </a>
+      {% endfor %}
+      <a class="secondary-link full" href="/accounts">Все аккаунты</a>
+    </div>
+  </aside>
+</section>
+
+<dialog id="add-server" class="modal">
+  <form method="post" action="/servers">
+    <div class="modal-head">
+      <h2>Новый сервер</h2>
+      <button type="button" class="plain" onclick="this.closest('dialog').close()">×</button>
+    </div>
+    {% set server = none %}
+    {% include "_form.html" %}
+    <div class="form-actions">
+      <button type="button" class="secondary" onclick="this.closest('dialog').close()">Отмена</button>
+      <button class="primary" type="submit">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

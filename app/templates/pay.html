@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="pay-view">
+  <a class="secondary-link" href="/">Назад</a>
+  <div class="pay-card {{ server.payment_state }}">
+    <p class="eyebrow">{{ server.provider }}</p>
+    <h1>{{ server.name }}</h1>
+    <div class="pay-meta">
+      <div>
+        <span>Оплатить до</span>
+        <strong>{{ server.next_payment_date.strftime("%d.%m.%Y") }}</strong>
+      </div>
+      <div>
+        <span>Осталось</span>
+        <strong>
+          {% if server.days_left < 0 %}
+            -{{ -server.days_left }} дн.
+          {% else %}
+            {{ server.days_left }} дн.
+          {% endif %}
+        </strong>
+      </div>
+      <div>
+        <span>Сумма</span>
+        <strong>{{ "%g"|format(server.amount) }} {{ server.currency }}</strong>
+      </div>
+    </div>
+    <dl>
+      <div><dt>IP</dt><dd>{{ server.ip_address or "не указан" }}</dd></div>
+      <div><dt>ID услуги</dt><dd>{{ server.service_id or "не указан" }}</dd></div>
+      <div><dt>Период</dt><dd>{{ server.billing_period_days }} дней</dd></div>
+      <div><dt>Последняя отметка</dt><dd>{{ server.last_paid_at or "еще не отмечалось" }}</dd></div>
+    </dl>
+    {% if server.notes %}
+    <p class="notes">{{ server.notes }}</p>
+    {% endif %}
+    <div class="pay-actions">
+      {% if server.effective_payment_url %}
+      <a class="primary" href="{{ server.effective_payment_url }}" target="_blank" rel="noreferrer">Перейти к оплате</a>
+      {% elif server.effective_panel_url %}
+      <a class="primary" href="{{ server.effective_panel_url }}" target="_blank" rel="noreferrer">Открыть кабинет</a>
+      {% else %}
+      <a class="primary disabled" aria-disabled="true">Ссылка не указана</a>
+      {% endif %}
+      <form method="post" action="/servers/{{ server.id }}/paid">
+        <button class="secondary" type="submit">Отметить оплачено</button>
+      </form>
+      <a class="secondary-link" href="{{ telegram_share_url }}" target="_blank" rel="noreferrer">Текст для Telegram</a>
+    </div>
+    {% if server.account_name or server.account_login or server.account_secret %}
+    <section class="auth-box">
+      <h2>Данные входа</h2>
+      <dl>
+        <div><dt>Аккаунт</dt><dd>{{ server.account_name or "не привязан" }}</dd></div>
+        <div><dt>Логин</dt><dd>{{ server.account_login or "не указан" }}</dd></div>
+        <div><dt>Секрет</dt><dd>{{ server.account_secret or "не указан" }}</dd></div>
+        <div><dt>Кабинет</dt><dd>{{ server.effective_panel_url or "не указан" }}</dd></div>
+      </dl>
+    </section>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
