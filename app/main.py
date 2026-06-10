@@ -35,6 +35,7 @@ from app.repository import (
     update_server,
 )
 from app.reminders import send_backup, send_due_reminders, send_telegram
+from app.provider_templates import list_provider_templates
 from app.system_update import start_system_update
 from app.telegram import build_telegram_share_url
 
@@ -43,6 +44,8 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
 SUPPORTED_CURRENCIES = {"RUB", "USD", "USDT"}
+DONATION_URL = "https://t.me/AlekseyRdonate_bot"
+templates.env.globals["donation_url"] = DONATION_URL
 
 
 @app.on_event("startup")
@@ -193,6 +196,8 @@ def dashboard(
             "filters": {"q": q, "provider": provider, "state": state},
             "monthly_plan": monthly_plan,
             "onboarding": onboarding,
+            "donation_url": DONATION_URL,
+            "provider_templates": list_provider_templates(),
             "today": date.today(),
             "stats": {
                 "total": len(servers),
@@ -245,7 +250,13 @@ def edit_server(request: Request, server_id: int) -> HTMLResponse:
         raise HTTPException(status_code=404)
     return templates.TemplateResponse(
         "edit.html",
-        {"request": request, "server": server, "accounts": list_accounts()},
+        {
+            "request": request,
+            "server": server,
+            "accounts": list_accounts(),
+            "provider_templates": list_provider_templates(),
+            "donation_url": DONATION_URL,
+        },
     )
 
 
@@ -301,7 +312,12 @@ def remove_server(server_id: int) -> RedirectResponse:
 def accounts_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         "accounts.html",
-        {"request": request, "accounts": list_accounts()},
+        {
+            "request": request,
+            "accounts": list_accounts(),
+            "provider_templates": list_provider_templates(),
+            "donation_url": DONATION_URL,
+        },
     )
 
 
@@ -326,7 +342,12 @@ def edit_account(request: Request, account_id: int) -> HTMLResponse:
         raise HTTPException(status_code=404)
     return templates.TemplateResponse(
         "account_edit.html",
-        {"request": request, "account": account},
+        {
+            "request": request,
+            "account": account,
+            "provider_templates": list_provider_templates(),
+            "donation_url": DONATION_URL,
+        },
     )
 
 
@@ -359,6 +380,18 @@ def history_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         "history.html",
         {"request": request, "items": list_payment_history()},
+    )
+
+
+@app.get("/providers", response_class=HTMLResponse)
+def providers_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        "providers.html",
+        {
+            "request": request,
+            "providers": list_provider_templates(),
+            "donation_url": DONATION_URL,
+        },
     )
 
 

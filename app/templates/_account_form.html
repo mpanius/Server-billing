@@ -1,11 +1,20 @@
 <div class="form-grid">
+  <label class="wide">
+    Шаблон провайдера
+    <select id="account-provider-template">
+      <option value="">Заполнить вручную</option>
+      {% for item in provider_templates %}
+      <option value="{{ loop.index0 }}">{{ item.name }} · {{ item.domain }}</option>
+      {% endfor %}
+    </select>
+  </label>
   <label>
     Название аккаунта
-    <input name="name" value="{{ account.name if account else '' }}" required placeholder="OnlineVDS основной">
+    <input id="account-name" name="name" value="{{ account.name if account else '' }}" required placeholder="OnlineVDS основной">
   </label>
   <label>
     Провайдер
-    <input name="provider" value="{{ account.provider if account else '' }}" required placeholder="onlinevds.ru">
+    <input id="account-provider" name="provider" value="{{ account.provider if account else '' }}" required placeholder="onlinevds.ru">
   </label>
   <label>
     Логин
@@ -17,14 +26,36 @@
   </label>
   <label class="wide">
     Ссылка на личный кабинет
-    <input name="panel_url" value="{{ account.panel_url if account else '' }}" placeholder="https://...">
+    <input id="account-panel-url" name="panel_url" value="{{ account.panel_url if account else '' }}" placeholder="https://...">
   </label>
   <label class="wide">
     Ссылка на оплату по умолчанию
-    <input name="payment_url" value="{{ account.payment_url if account else '' }}" placeholder="https://...">
+    <input id="account-payment-url" name="payment_url" value="{{ account.payment_url if account else '' }}" placeholder="https://...">
   </label>
   <label class="wide">
     Заметки
-    <textarea name="notes" rows="3" placeholder="2FA, где искать счета, особенности входа">{{ account.notes if account else '' }}</textarea>
+    <textarea id="account-notes" name="notes" rows="3" placeholder="2FA, где искать счета, особенности входа">{{ account.notes if account else '' }}</textarea>
   </label>
 </div>
+<script>
+  (() => {
+    const templates = {{ provider_templates|tojson }};
+    const select = document.querySelector("#account-provider-template");
+    if (!select) return;
+    const setValue = (selector, value, overwrite = false) => {
+      const field = document.querySelector(selector);
+      if (!field || value === undefined || value === null || value === "") return;
+      if (overwrite || !field.value) field.value = value;
+    };
+    select.addEventListener("change", () => {
+      const item = templates[Number(select.value)];
+      if (!item) return;
+      setValue("#account-name", item.name, true);
+      setValue("#account-provider", item.domain || item.name, true);
+      setValue("#account-panel-url", item.panel_url);
+      setValue("#account-payment-url", item.payment_url || item.panel_url);
+      const notes = [item.service_hint, item.notes].filter(Boolean).join("\n");
+      setValue("#account-notes", notes);
+    });
+  })();
+</script>

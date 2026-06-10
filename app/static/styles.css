@@ -81,6 +81,14 @@ td small,
   font-weight: 650;
 }
 
+.topnav .donate-link {
+  border: 1px solid #ffd7ad;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a4f00;
+  padding: 8px 10px;
+}
+
 .topnav {
   display: flex;
   align-items: center;
@@ -594,6 +602,61 @@ dd {
   gap: 8px;
 }
 
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.provider-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.provider-card p {
+  margin: 0;
+  color: #3a4655;
+}
+
+.provider-card dl {
+  margin-bottom: 0;
+}
+
+.provider-card-head,
+.support-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recommend-badge {
+  border-radius: 999px;
+  background: #fff0d9;
+  color: #915100;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.recommend-badge.soft {
+  background: #eaf8f2;
+  color: var(--green);
+}
+
+.support-panel {
+  margin-top: 18px;
+  padding: 18px;
+}
+
+.support-panel p {
+  margin: 6px 0 0;
+}
+
 .auth-box {
   margin-top: 22px;
   border-top: 1px solid var(--line);
@@ -767,7 +830,8 @@ dd {
 
   .page-head,
   .pay-actions,
-  .form-actions {
+  .form-actions,
+  .support-panel {
     align-items: stretch;
     flex-direction: column;
   }

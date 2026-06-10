@@ -1,0 +1,169 @@
+[
+  {
+    "name": "Hetzner",
+    "domain": "hetzner.com",
+    "website_url": "https://www.hetzner.com/cloud",
+    "panel_url": "https://console.hetzner.com/",
+    "payment_url": "https://accounts.hetzner.com/",
+    "default_currency": "",
+    "billing_period_days": 30,
+    "service_hint": "Cloud Console: проект -> Servers -> нужный сервер.",
+    "notes": "Популярный EU-провайдер VPS, cloud и dedicated. Проверь, включена ли почасовая или месячная тарификация."
+  },
+  {
+    "name": "DigitalOcean",
+    "domain": "digitalocean.com",
+    "website_url": "https://www.digitalocean.com/products/droplets",
+    "panel_url": "https://cloud.digitalocean.com/",
+    "payment_url": "https://cloud.digitalocean.com/billing",
+    "default_currency": "USD",
+    "billing_period_days": 30,
+    "service_hint": "Control panel: Droplets -> имя Droplet.",
+    "notes": "Удобен для Droplets, Managed DB, Spaces и Kubernetes."
+  },
+  {
+    "name": "Vultr",
+    "domain": "vultr.com",
+    "website_url": "https://www.vultr.com/",
+    "panel_url": "https://my.vultr.com/",
+    "payment_url": "https://my.vultr.com/billing/",
+    "default_currency": "USD",
+    "billing_period_days": 30,
+    "service_hint": "Customer Portal: Products -> нужный instance.",
+    "notes": "Глобальный cloud/VPS-провайдер с почасовой оплатой."
+  },
+  {
+    "name": "Akamai / Linode",
+    "domain": "linode.com",
+    "website_url": "https://www.linode.com/",
+    "panel_url": "https://cloud.linode.com/",
+    "payment_url": "https://cloud.linode.com/account/billing",
+    "default_currency": "USD",
+    "billing_period_days": 30,
+    "service_hint": "Cloud Manager: Linodes -> нужный сервер.",
+    "notes": "Akamai Cloud, ранее Linode. Удобен для VPS и predictable pricing."
+  },
+  {
+    "name": "OVHcloud",
+    "domain": "ovhcloud.com",
+    "website_url": "https://www.ovhcloud.com/",
+    "panel_url": "https://www.ovh.com/manager/",
+    "payment_url": "https://www.ovh.com/manager/#/dedicated/billing",
+    "default_currency": "USD",
+    "billing_period_days": 30,
+    "service_hint": "OVHcloud Manager: Bare Metal & VPS -> нужная услуга.",
+    "notes": "VPS, dedicated, bare metal и облачные сервисы. Регион панели может отличаться."
+  },
+  {
+    "name": "Scaleway",
+    "domain": "scaleway.com",
+    "website_url": "https://www.scaleway.com/",
+    "panel_url": "https://console.scaleway.com/",
+    "payment_url": "https://console.scaleway.com/billing",
+    "default_currency": "",
+    "billing_period_days": 30,
+    "service_hint": "Console: Instances -> нужный instance.",
+    "notes": "EU cloud provider: instances, dedibox, storage, managed services."
+  },
+  {
+    "name": "Contabo",
+    "domain": "contabo.com",
+    "website_url": "https://contabo.com/",
+    "panel_url": "https://my.contabo.com/account/login",
+    "payment_url": "https://my.contabo.com/",
+    "default_currency": "",
+    "billing_period_days": 30,
+    "service_hint": "Customer Control Panel: Your services -> VPS/VDS.",
+    "notes": "VPS и dedicated с месячной оплатой. Логин обычно приходит в письме после заказа."
+  },
+  {
+    "name": "Timeweb Cloud",
+    "domain": "timeweb.cloud",
+    "website_url": "https://timeweb.cloud/",
+    "panel_url": "https://timeweb.cloud/my/login",
+    "payment_url": "https://timeweb.cloud/my/billing",
+    "default_currency": "RUB",
+    "billing_period_days": 30,
+    "service_hint": "Панель: Облачные серверы -> нужный сервер.",
+    "notes": "Российская облачная платформа: VDS/VPS, DBaaS, S3, Kubernetes."
+  },
+  {
+    "name": "Selectel",
+    "domain": "selectel.ru",
+    "website_url": "https://selectel.ru/",
+    "panel_url": "https://my.selectel.ru/",
+    "payment_url": "https://my.selectel.ru/",
+    "default_currency": "RUB",
+    "billing_period_days": 30,
+    "service_hint": "Панель управления: облако или выделенные серверы -> услуга.",
+    "notes": "Российский провайдер облака, VPC, dedicated и инфраструктурных сервисов."
+  },
+  {
+    "name": "REG.RU",
+    "domain": "reg.ru",
+    "website_url": "https://www.reg.ru/",
+    "panel_url": "https://www.reg.ru/user/account/",
+    "payment_url": "https://www.reg.ru/user/account/#/balance",
+    "default_currency": "RUB",
+    "billing_period_days": 30,
+    "service_hint": "Личный кабинет: услуги VPS/VDS или домены -> нужная услуга.",
+    "notes": "Домены, хостинг, VPS/VDS, облачные серверы и выделенные серверы."
+  },
+  {
+    "name": "Beget",
+    "domain": "beget.com",
+    "website_url": "https://beget.com/",
+    "panel_url": "https://cp.beget.com/",
+    "payment_url": "https://cp.beget.com/billing",
+    "default_currency": "RUB",
+    "billing_period_days": 30,
+    "telegram_access": true,
+    "service_hint": "Панель Beget: Cloud/VPS или услуги хостинга.",
+    "notes": "У Beget есть собственная панель и Telegram @begetbot. Если доступ выдали через Telegram, сохрани username/ссылку в заметках."
+  },
+  {
+    "name": "FirstVDS",
+    "domain": "firstvds.ru",
+    "website_url": "https://firstvds.ru/",
+    "panel_url": "https://billing.firstvds.ru/",
+    "payment_url": "https://billing.firstvds.ru/",
+    "default_currency": "RUB",
+    "billing_period_days": 30,
+    "service_hint": "Личный кабинет: Товары -> Виртуальные серверы.",
+    "notes": "VDS/VPS-провайдер. Сохраняй номер услуги или имя VDS из личного кабинета."
+  },
+  {
+    "name": "VDSina",
+    "domain": "vdsina.ru",
+    "website_url": "https://vdsina.ru/",
+    "panel_url": "https://cp.vdsina.ru/",
+    "payment_url": "https://cp.vdsina.ru/",
+    "default_currency": "RUB",
+    "billing_period_days": 30,
+    "service_hint": "Панель управления: список серверов -> нужный VDS.",
+    "notes": "Cloud VPS/VDS с быстрым управлением серверами из панели."
+  },
+  {
+    "name": "Aeza",
+    "domain": "aeza.net",
+    "website_url": "https://aeza.net/",
+    "panel_url": "https://my.aeza.net/",
+    "payment_url": "https://my.aeza.net/",
+    "default_currency": "",
+    "billing_period_days": 30,
+    "telegram_access": true,
+    "service_hint": "Личный кабинет: услуги -> виртуальные или выделенные серверы.",
+    "notes": "Современный hosting provider. Если доступ или поддержка идут через Telegram, сохрани контакт в заметках."
+  },
+  {
+    "name": "Fornex",
+    "domain": "fornex.com",
+    "website_url": "https://fornex.com/",
+    "panel_url": "https://fornex.com/my/",
+    "payment_url": "https://fornex.com/my/",
+    "default_currency": "",
+    "billing_period_days": 30,
+    "service_hint": "Личный кабинет: услуги -> VPS/сервер.",
+    "notes": "VPS, хостинг и выделенные серверы. В заметках удобно хранить страну/локацию."
+  }
+]

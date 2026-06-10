@@ -1,5 +1,14 @@
 <div class="form-grid">
   <label class="wide">
+    Шаблон провайдера
+    <select id="server-provider-template">
+      <option value="">Заполнить вручную</option>
+      {% for item in provider_templates %}
+      <option value="{{ loop.index0 }}">{{ item.name }} · {{ item.domain }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="wide">
     Аккаунт хостинга
     <select name="hosting_account_id">
       <option value="0">Без привязки</option>
@@ -16,7 +25,7 @@
   </label>
   <label>
     Провайдер
-    <input name="provider" value="{{ server.provider if server else '' }}" required placeholder="onlinevds.ru">
+    <input id="server-provider" name="provider" value="{{ server.provider if server else '' }}" required placeholder="onlinevds.ru">
   </label>
   <label>
     IP
@@ -32,7 +41,7 @@
   </label>
   <label>
     Валюта
-    <select name="currency">
+    <select id="server-currency" name="currency">
       {% set selected_currency = server.currency if server else "RUB" %}
       <option value="RUB" {% if selected_currency == "RUB" %}selected{% endif %}>RUB · рубли</option>
       <option value="USD" {% if selected_currency == "USD" %}selected{% endif %}>USD · доллары</option>
@@ -41,7 +50,7 @@
   </label>
   <label>
     Период, дней
-    <input type="number" min="1" name="billing_period_days" value="{{ server.billing_period_days if server else '30' }}">
+    <input id="server-period" type="number" min="1" name="billing_period_days" value="{{ server.billing_period_days if server else '30' }}">
   </label>
   <label>
     Следующая оплата
@@ -49,14 +58,37 @@
   </label>
   <label class="wide">
     Ссылка на оплату
-    <input name="payment_url" value="{{ server.payment_url if server else '' }}" placeholder="https://...">
+    <input id="server-payment-url" name="payment_url" value="{{ server.payment_url if server else '' }}" placeholder="https://...">
   </label>
   <label class="wide">
     Личный кабинет
-    <input name="panel_url" value="{{ server.panel_url if server else '' }}" placeholder="https://...">
+    <input id="server-panel-url" name="panel_url" value="{{ server.panel_url if server else '' }}" placeholder="https://...">
   </label>
   <label class="wide">
     Заметки
-    <textarea name="notes" rows="3" placeholder="Что важно помнить">{{ server.notes if server else '' }}</textarea>
+    <textarea id="server-notes" name="notes" rows="3" placeholder="Что важно помнить">{{ server.notes if server else '' }}</textarea>
   </label>
 </div>
+<script>
+  (() => {
+    const templates = {{ provider_templates|tojson }};
+    const select = document.querySelector("#server-provider-template");
+    if (!select) return;
+    const setValue = (selector, value, overwrite = false) => {
+      const field = document.querySelector(selector);
+      if (!field || value === undefined || value === null || value === "") return;
+      if (overwrite || !field.value) field.value = value;
+    };
+    select.addEventListener("change", () => {
+      const item = templates[Number(select.value)];
+      if (!item) return;
+      setValue("#server-provider", item.domain || item.name, true);
+      setValue("#server-panel-url", item.panel_url);
+      setValue("#server-payment-url", item.payment_url || item.panel_url);
+      setValue("#server-period", item.billing_period_days, true);
+      setValue("#server-currency", item.default_currency, true);
+      const notes = [item.service_hint, item.notes].filter(Boolean).join("\n");
+      setValue("#server-notes", notes);
+    });
+  })();
+</script>
