@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_API_BASE = "https://rdp-onedash.ru/web-api"
 CABINET_URL = "https://rdp-onedash.ru/cabinet"
+PUBLIC_SITE_URL = "https://rdp-onedash.ru/"
 
 LOCATION_LABELS = {
     "msk": "Москва",
@@ -105,7 +106,8 @@ class OneDashConnector:
             logger.info("OneDash balance response without data block.")
 
     def list_services(self, *, known_periods: dict[str, int] | None = None) -> list[RemoteService]:
-        tariffs = _load_tariffs(self._request("tariffs"))
+        api_tariffs = _load_tariffs(self._request("tariffs"))
+        tariffs = _merge_tariff_catalogs(api_tariffs, _load_public_tariffs())
         payload = self._request("all-orders")
         orders = payload.get("data")
         if not isinstance(orders, list):
@@ -143,6 +145,95 @@ def _load_tariffs(payload: dict[str, object]) -> dict[int, dict[str, object]]:
             continue
         tariffs[tariff_id] = row
     return tariffs
+
+
+def _extract_json_array(text: str, start: int) -> list[object] | None:
+    while start < len(text) and text[start].isspace():
+        start += 1
+    if start >= len(text) or text[start] != "[":
+        return None
+    depth = 0
+    in_string = False
+    escape = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+            if depth == 0:
+                try:
+                    parsed = json.loads(text[start : index + 1])
+                except json.JSONDecodeError:
+                    return None
+                return parsed if isinstance(parsed, list) else None
+    return None
+
+
+def _load_public_tariffs(timeout: int = 20) -> dict[int, dict[str, object]]:
+    """Публичная витрина содержит new_prices_hel/fra, которых нет в web-api/tariffs."""
+    request = urllib.request.Request(PUBLIC_SITE_URL, headers={"User-Agent": "server-billing-manager/1.0"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            html = response.read().decode("utf-8", errors="ignore")
+    except (urllib.error.URLError, TimeoutError) as error:
+        logger.warning("OneDash public tariffs fetch failed: %s", error)
+        return {}
+
+    marker = "var allTariffs = "
+    index = html.find(marker)
+    if index < 0:
+        return {}
+    rows = _extract_json_array(html, index + len(marker))
+    if not isinstance(rows, list):
+        return {}
+
+    tariffs: dict[int, dict[str, object]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        try:
+            tariff_id = int(row.get("id"))
+        except (TypeError, ValueError):
+            continue
+        tariffs[tariff_id] = row
+    return tariffs
+
+
+def _merge_tariff_catalogs(
+    api_tariffs: dict[int, dict[str, object]],
+    public_tariffs: dict[int, dict[str, object]],
+) -> dict[int, dict[str, object]]:
+    merged = {tariff_id: dict(row) for tariff_id, row in api_tariffs.items()}
+    for tariff_id, public_row in public_tariffs.items():
+        target = dict(merged.get(tariff_id, public_row))
+        for key, value in public_row.items():
+            if isinstance(key, str) and key.startswith("new_prices") and not target.get(key):
+                target[key] = value
+        merged[tariff_id] = target
+    return merged
+
+
+def _resolve_tariff_id(tariff_id: int, tariff_name: str, tariffs: dict[int, dict[str, object]]) -> int:
+    if tariff_id and tariff_id in tariffs:
+        return tariff_id
+    name = tariff_name.strip().lower()
+    if not name:
+        return tariff_id
+    for candidate_id, row in tariffs.items():
+        if str(row.get("name") or "").strip().lower() == name:
+            return candidate_id
+    return tariff_id
 
 
 def _effective_price(price_row: dict[str, object]) -> float:
@@ -380,11 +471,41 @@ def _extra_charges(order: dict[str, object], period: int, currency: str) -> floa
     return extra * _addon_multiplier(period)
 
 
-def _price_for_period(prices: list[tuple[int, float]], period: int) -> float | None:
+def _scan_order_amount(raw: object, *, depth: int = 0) -> float | None:
+    if depth > 5:
+        return None
+    if isinstance(raw, dict):
+        for key, value in raw.items():
+            key_l = str(key).lower()
+            if key_l in {
+                "renew_price",
+                "renewal_price",
+                "next_payment",
+                "next_payment_price",
+                "payment_amount",
+            }:
+                amount = _parse_amount(value)
+                if amount is not None:
+                    return amount
+            if key_l in {"price", "amount", "summ", "sum"} and "dop" not in key_l:
+                amount = _parse_amount(value)
+                if amount is not None and amount >= 10:
+                    return amount
+        for value in raw.values():
+            amount = _scan_order_amount(value, depth=depth + 1)
+            if amount is not None:
+                return amount
+    return None
+
+
+def _price_for_period(prices: list[tuple[int, float]], period: int) -> tuple[float | None, int]:
     for row_period, price in prices:
         if row_period == period:
-            return price
-    return None
+            return price, period
+    if not prices:
+        return None, period
+    nearest_period, nearest_price = min(prices, key=lambda item: abs(item[0] - period))
+    return nearest_price, nearest_period
 
 
 def _parse_amount(raw: object) -> float | None:
@@ -424,6 +545,9 @@ def _order_amount_from_payload(order: dict[str, object]) -> tuple[float | None, 
             amount = _parse_amount(nested.get(key))
             if amount is not None:
                 return amount, nested_period, nested_currency
+    scanned = _scan_order_amount(order)
+    if scanned is not None:
+        return scanned, period, currency
     return None, period, currency
 
 
@@ -466,7 +590,7 @@ def _renewal_amount(
         )
         return None, period, currency
 
-    base = _price_for_period(prices, period)
+    base, matched_period = _price_for_period(prices, period)
     if base is None:
         logger.warning(
             "OneDash: нет цены для периода %s (тариф %s, локация %s, order %s).",
@@ -477,6 +601,7 @@ def _renewal_amount(
         )
         return None, period, currency
 
+    period = matched_period
     order_count = max(1, int(order.get("order_count") or 1))
     total = (base + _extra_charges(order, period, currency)) * order_count
     return total, period, currency
@@ -534,6 +659,7 @@ def _services_from_order(
         tariff_id = int(tariff.get("id") or 0)
     except (TypeError, ValueError):
         tariff_id = 0
+    tariff_id = _resolve_tariff_id(tariff_id, tariff_name, tariffs)
     location = str(order.get("location") or "").strip().lower()
     location_code = _location_code(location)
     finish_time = _parse_finish_date(order.get("finish_time"))
