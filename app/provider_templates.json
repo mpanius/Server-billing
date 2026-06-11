@@ -197,7 +197,7 @@
     "default_currency": "RUB",
     "billing_period_days": 30,
     "service_hint": "Client area: Services -> нужный сервер или RDP.",
-    "notes": "RDP и VPS. Часто используется WHMCS-подобная панель клиента."
+    "notes": "RDP и VPS. Есть Web API (баланс, заказы, тарифы): rdp-onedash.ru/web-api/."
   },
   {
     "name": "RuVDS",
