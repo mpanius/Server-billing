@@ -1,0 +1,53 @@
+# Пример nginx для Server Billing Manager.
+# Скопируйте в /etc/nginx/sites-available/server-billing
+# и включите: ln -s ... sites-enabled/
+#
+# Требования:
+# - docker compose -f docker-compose.nginx.yml (app на 127.0.0.1:8000)
+# - сертификат Let's Encrypt (certbot) или свой
+# - WebSocket-заголовки обязательны для веб-терминала
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name billing.example.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name billing.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/billing.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/billing.example.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 900s;
+        proxy_send_timeout 900s;
+    }
+}

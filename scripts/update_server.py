@@ -8,6 +8,12 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+COMPOSE_FILE = os.environ.get("COMPOSE_FILE", "docker-compose.prod.yml")
+COMPOSE_SERVICES = [
+    item.strip()
+    for item in os.environ.get("COMPOSE_SERVICES", "app,scheduler,caddy").split(",")
+    if item.strip()
+]
 INSTALL_DIR = Path(os.environ.get("INSTALL_DIR", "/repo")).resolve()
 TOKEN = os.environ.get("UPDATER_TOKEN", "")
 PORT = int(os.environ.get("UPDATER_PORT", "8765"))
@@ -87,13 +93,11 @@ def update_repository() -> None:
                 "docker",
                 "compose",
                 "-f",
-                "docker-compose.prod.yml",
+                COMPOSE_FILE,
                 "up",
                 "-d",
                 "--build",
-                "app",
-                "scheduler",
-                "caddy",
+                *COMPOSE_SERVICES,
             ]
         )
         write_version_status("success", "Обновление успешно завершено.", previous_version)

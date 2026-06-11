@@ -18,7 +18,7 @@ Self-hosted панель для учета серверов, сроков опл
 - Шаблоны популярных провайдеров для быстрого заполнения ссылок, валюты и подсказок.
 - Справочник провайдеров по странам: выбор страны, варианты провайдеров и создание сервера из шаблона.
 - Статусы оплаты: в порядке, скоро, срочно, просрочено.
-- Ввод даты следующей оплаты в русском формате `дд.мм.гггг`.
+- Ввод даты следующей оплаты через календарь в форме сервера.
 - Страница оплаты конкретного сервера.
 - Кнопка перехода на ссылку оплаты сервера или аккаунта хостинга.
 - Кнопка `Отметить оплачено`, которая переносит дату на следующий период.
@@ -41,8 +41,8 @@ Self-hosted панель для учета серверов, сроков опл
 - Ненавязчивая ссылка `Поддержать разработку` через Telegram Stars.
 - Авторизация администратора по логину и паролю.
 - Смена пароля администратора в веб-панели.
-- Страница подключения собственного домена.
-- Развертывание через Docker Compose и Caddy.
+- Страница подключения собственного домена (в разделе `Настройки`).
+- Развертывание через Docker Compose и Caddy **или** через nginx на уже занятом 443 порту.
 - HTTPS без домена через `IP.sslip.io` или собственный домен с сертификатом Caddy.
 
 ## Установка одной командой
@@ -77,6 +77,8 @@ https://YOUR_SERVER_IP.sslip.io
 ```
 
 Обычный адрес `http://YOUR_SERVER_IP` будет редиректить на защищенную HTTPS-ссылку.
+
+Если автоматический установщик не подходит, используйте [ручную установку](#ручная-установка-без-installsh).
 
 ## HTTPS без домена
 
@@ -244,19 +246,170 @@ http://127.0.0.1:8000
 
 Production-режим использует:
 
-- `app` - FastAPI web app;
-- `scheduler` - Telegram reminder worker;
-- `caddy` - reverse proxy и HTTPS;
-- `updater` - внутренний сервис для обновления приложения из веб-панели.
+- `app` — FastAPI web app;
+- `scheduler` — Telegram reminder worker и проверка SSL;
+- `caddy` — reverse proxy и HTTPS (по умолчанию);
+- `updater` — внутренний сервис для обновления из веб-панели.
 
-Ручной запуск:
+Стандартный запуск после настройки `.env`:
 
 ```bash
-cp .env.example .env
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Для ручной установки нужно самостоятельно заполнить `APP_SECRET_KEY`, `APP_ENCRYPTION_KEY`, `ADMIN_USERNAME` и `ADMIN_PASSWORD_HASH`. Проще использовать `scripts/install.sh`, он генерирует эти значения автоматически.
+## Ручная установка (без install.sh)
+
+Автоматический `scripts/install.sh` удобен на чистом VPS, но не всем подходит. Ручная установка нужна, если:
+
+- хотите свой каталог, не `/opt/server-billing`;
+- на сервере уже заняты 80/443 другим веб-сервером (nginx, Apache, другой сайт);
+- нет доступа под `root` или нельзя запускать curl|bash;
+- нужно заранее посмотреть и поправить каждый шаг.
+
+### 1. Зависимости
+
+```bash
+apt update
+apt install -y git python3
+# Docker Engine + Compose plugin — по официальной инструкции:
+# https://docs.docker.com/engine/install/
+```
+
+Проверка:
+
+```bash
+docker compose version
+git --version
+python3 --version
+```
+
+### 2. Клонирование
+
+```bash
+git clone https://github.com/AlekseyRusaleev/Server-billing.git /opt/server-billing
+cd /opt/server-billing
+```
+
+Каталог можно заменить на свой, главное — потом указать его же в `INSTALL_DIR` для updater (по умолчанию `/opt/server-billing`).
+
+### 3. Файл `.env`
+
+```bash
+cp .env.example .env
+```
+
+Сгенерируйте секреты и хеш пароля администратора:
+
+```bash
+python3 - <<'PY'
+import base64, hashlib, os, secrets
+
+password = input("Пароль администратора: ").encode()
+salt = os.urandom(16)
+digest = hashlib.pbkdf2_hmac("sha256", password, salt, 260_000)
+print("APP_SECRET_KEY=" + secrets.token_urlsafe(48))
+print("APP_ENCRYPTION_KEY=" + base64.urlsafe_b64encode(os.urandom(32)).decode())
+print("APP_UPDATE_TOKEN=" + secrets.token_urlsafe(32))
+print(
+    "ADMIN_PASSWORD_HASH=pbkdf2_sha256:260000:"
+    + base64.urlsafe_b64encode(salt).decode()
+    + ":"
+    + base64.urlsafe_b64encode(digest).decode()
+)
+PY
+```
+
+Скопируйте вывод в `.env` и допишите минимум:
+
+```env
+ADMIN_USERNAME=admin
+SERVER_IP=YOUR_SERVER_IP
+BASE_URL=https://YOUR_SERVER_IP.sslip.io
+CADDY_SITE_ADDRESS=YOUR_SERVER_IP.sslip.io
+APP_UPDATE_URL=http://updater:8765/update
+```
+
+Для своего домена:
+
+```env
+BASE_URL=https://billing.example.com
+CADDY_SITE_ADDRESS=billing.example.com
+CADDY_EMAIL=admin@example.com
+```
+
+`TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` можно оставить пустыми — настроите в панели после входа.
+
+Полный список переменных — в разделе [Настройки `.env`](#настройки-env).
+
+### 4. Запуск контейнеров
+
+**Обычный случай** — порты 80 и 443 свободны, HTTPS через встроенный Caddy:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Проверка:
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+curl -I "https://$(grep '^CADDY_SITE_ADDRESS=' .env | cut -d= -f2-)/login"
+```
+
+**Если 80/443 уже заняты** — см. [Свой reverse proxy](#свой-reverse-proxy-nginx-apache-и-др) ниже; Caddy из compose в этом случае не запускайте.
+
+### 5. Первый вход
+
+1. Откройте `BASE_URL` из `.env`.
+2. Войдите логином и паролем из шага 3.
+3. В `Настройки` пройдите мастер Telegram (bot token → chat id → тест).
+4. Добавьте первый сервер или удалите демо-данные.
+
+### 6. Обновление вручную
+
+Перед обновлением сохраните папку `data/` (там SQLite-база и ключи SSH для терминала).
+
+**Стандартная установка (Caddy):**
+
+```bash
+cd /opt/server-billing
+git pull --ff-only
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+**Без Caddy** (свой reverse proxy):
+
+```bash
+cd /opt/server-billing
+git pull --ff-only
+docker compose -f docker-compose.nginx.yml up -d --build
+```
+
+Кнопка «Обновить сервис» в панели делает то же самое автоматически, если в `.env` заданы `APP_UPDATE_URL` и `APP_UPDATE_TOKEN`.
+
+## Свой reverse proxy (nginx, Apache и др.)
+
+Если на сервере уже работает nginx, Apache или другой прокси с HTTPS — **не поднимайте Caddy** из `docker-compose.prod.yml`, иначе будет конфликт за 80/443.
+
+Схема:
+
+```text
+Интернет → ваш nginx :443
+              ↓ proxy_pass
+         127.0.0.1:8000 → Docker (app + scheduler + updater)
+```
+
+Запуск без Caddy:
+
+```bash
+docker compose -f docker-compose.nginx.yml up -d --build
+```
+
+Приложение слушает только `127.0.0.1:8000`. Настройте прокси на хосте с поддержкой **WebSocket** (нужен для веб-терминала). Готовый пример для nginx: [`deploy/nginx/server-billing.conf.example`](deploy/nginx/server-billing.conf.example).
+
+В `.env` укажите публичный `BASE_URL=https://ваш-домен` — без `CADDY_SITE_ADDRESS`, он для Caddy не нужен.
+
+Updater в `docker-compose.nginx.yml` уже настроен пересобирать только `app` и `scheduler`, без Caddy.
 
 ## Настройки `.env`
 
@@ -305,20 +458,24 @@ Telegram настраивается после установки в веб-па
 
 ## Домен
 
-Раздел `Домен` показывает текущий `Base URL`, IP сервера и инструкцию для подключения собственного домена.
+Настройки домена — в разделе `Настройки` (блок «Домен»).
 
 Чтобы подключить домен:
 
 1. Создайте DNS `A`-запись на IP сервера.
-2. Сохраните домен в разделе `Домен`, чтобы ссылки в Telegram использовали новый адрес.
+2. Сохраните домен в `Настройки → Домен`, чтобы ссылки в Telegram использовали новый адрес.
 3. На сервере обновите `.env`:
 
 ```env
 BASE_URL=https://billing.example.com
-CADDY_SITE_ADDRESS=billing.example.com
 ```
 
-4. Перезапустите Caddy и scheduler:
+**Если используете Caddy**, также:
+
+```env
+CADDY_SITE_ADDRESS=billing.example.com
+CADDY_EMAIL=admin@example.com
+```
 
 ```bash
 cd /opt/server-billing
@@ -327,17 +484,13 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate caddy scheduler
 
 Caddy автоматически выпустит HTTPS-сертификат.
 
+**Если используете nginx**, добавьте `server_name` и сертификат в nginx (см. [`deploy/nginx/server-billing.conf.example`](deploy/nginx/server-billing.conf.example)), затем `nginx -t && systemctl reload nginx`. Контейнеры перезапускать не обязательно.
+
 ## Обновление
 
-В разделе `Настройки` можно нажать `Обновить сервис`. Кнопка обращается к внутреннему `updater` service, который выполняет `git pull --ff-only` и пересобирает Docker Compose. Сервис не публикует внешний порт и принимает запрос только с `APP_UPDATE_TOKEN`.
+**Из панели:** `Настройки → Обновить сервис` (нужны `APP_UPDATE_URL` и `APP_UPDATE_TOKEN` в `.env`).
 
-Ручной вариант:
-
-```bash
-cd /opt/server-billing
-git pull
-docker compose -f docker-compose.prod.yml up -d --build
-```
+**Вручную:** команды в [шаге 6 ручной установки](#6-обновление-вручную). Перед обновлением сохраните папку `data/` или отправьте backup в Telegram из настроек.
 
 ## Данные
 

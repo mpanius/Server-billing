@@ -1,0 +1,45 @@
+# Production без Caddy: приложение слушает только localhost:8000.
+# HTTPS и 443/80 — на стороне nginx (или другого reverse proxy) на хосте.
+# Запуск: docker compose -f docker-compose.nginx.yml up -d --build
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/server_billing.db
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "app.reminders"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/server_billing.db
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - app
+
+  updater:
+    build:
+      context: .
+      dockerfile: Dockerfile.updater
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      INSTALL_DIR: /opt/server-billing
+      UPDATER_TOKEN: ${APP_UPDATE_TOKEN:-}
+      COMPOSE_FILE: docker-compose.nginx.yml
+      COMPOSE_SERVICES: app,scheduler
+    volumes:
+      - .:/opt/server-billing
+      - /var/run/docker.sock:/var/run/docker.sock
