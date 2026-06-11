@@ -722,12 +722,24 @@ def providers_page(request: Request, country: str = "") -> HTMLResponse:
 @app.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request, saved: str = "", tested: str = "") -> HTMLResponse:
     current = notification_settings()
+    try:
+        ssl_threshold = int(get_app_setting("ssl_alert_days", "3") or 3)
+    except ValueError:
+        ssl_threshold = 3
     return templates.TemplateResponse(
         "settings.html",
         {
             "request": request,
             "settings": settings,
             "notification": current,
+            "ssl_results": run_ssl_checks(),
+            "ssl_monitors": list_ssl_monitors(),
+            "ssl_threshold": ssl_threshold,
+            "ssl_saved": request.query_params.get("ssl_saved", ""),
+            "domain_base_url": current.get("base_url", settings.base_url),
+            "server_ip": settings.server_ip,
+            "current_host": request.url.hostname or "",
+            "domain_saved": request.query_params.get("domain_saved", ""),
             "currency": {
                 "base": current.get("currency_base", "RUB"),
                 "rates": current.get("currency_rates", "RUB:1"),
@@ -881,44 +893,29 @@ def change_password(
     return RedirectResponse("/settings?password=changed", status_code=303)
 
 
-@app.get("/ssl", response_class=HTMLResponse)
-def ssl_page(request: Request) -> HTMLResponse:
-    results = run_ssl_checks()
-    try:
-        threshold = int(get_app_setting("ssl_alert_days", "3") or 3)
-    except ValueError:
-        threshold = 3
-    return templates.TemplateResponse(
-        "ssl.html",
-        {
-            "request": request,
-            "results": results,
-            "monitors": list_ssl_monitors(),
-            "threshold": threshold,
-            "donation_url": DONATION_URL,
-            "saved": request.query_params.get("saved", ""),
-        },
-    )
+@app.get("/ssl")
+def ssl_page() -> RedirectResponse:
+    return RedirectResponse("/settings#ssl", status_code=303)
 
 
 @app.post("/ssl/add")
 def add_ssl_monitor(host: str = Form(...), port: int = Form(443), label: str = Form("")) -> RedirectResponse:
     if host.strip():
         create_ssl_monitor(host, port, label)
-    return RedirectResponse("/ssl", status_code=303)
+    return RedirectResponse("/settings#ssl", status_code=303)
 
 
 @app.post("/ssl/{monitor_id}/delete")
 def remove_ssl_monitor(monitor_id: int) -> RedirectResponse:
     delete_ssl_monitor(monitor_id)
-    return RedirectResponse("/ssl", status_code=303)
+    return RedirectResponse("/settings#ssl", status_code=303)
 
 
 @app.post("/ssl/threshold")
 def save_ssl_threshold(ssl_alert_days: int = Form(3)) -> RedirectResponse:
     value = ssl_alert_days if ssl_alert_days and ssl_alert_days > 0 else 3
     set_app_setting("ssl_alert_days", str(value))
-    return RedirectResponse("/ssl?saved=1", status_code=303)
+    return RedirectResponse("/settings?ssl_saved=1#ssl", status_code=303)
 
 
 @app.get("/analytics", response_class=HTMLResponse)
@@ -933,21 +930,9 @@ def analytics_page(request: Request) -> HTMLResponse:
     )
 
 
-@app.get("/domain", response_class=HTMLResponse)
-def domain_page(request: Request) -> HTMLResponse:
-    current = notification_settings()
-    host = request.url.hostname or ""
-    server_ip = settings.server_ip
-    return templates.TemplateResponse(
-        "domain.html",
-        {
-            "request": request,
-            "base_url": current.get("base_url", settings.base_url),
-            "server_ip": server_ip,
-            "current_host": host,
-            "saved": request.query_params.get("saved", ""),
-        },
-    )
+@app.get("/domain")
+def domain_page() -> RedirectResponse:
+    return RedirectResponse("/settings#domain", status_code=303)
 
 
 @app.post("/domain")
@@ -955,7 +940,7 @@ def save_domain(domain: str = Form("")) -> RedirectResponse:
     domain = domain.strip().replace("https://", "").replace("http://", "").strip("/")
     if domain:
         set_app_setting("base_url", f"https://{domain}")
-    return RedirectResponse("/domain?saved=1", status_code=303)
+    return RedirectResponse("/settings?domain_saved=1#domain", status_code=303)
 
 
 @app.get("/servers/{server_id}/terminal", response_class=HTMLResponse)

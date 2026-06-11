@@ -252,6 +252,164 @@
   </aside>
 
 </section>
+
+<section class="page-head" id="domain">
+  <div>
+    <p class="eyebrow">Caddy и HTTPS</p>
+    <h2>Домен</h2>
+  </div>
+</section>
+{% if domain_saved %}
+<div class="notice success">Base URL сохранён для ссылок в Telegram. Caddy нужно обновить командой ниже.</div>
+{% endif %}
+<section class="settings-grid">
+  <form class="panel" method="post" action="/domain">
+    <div class="panel-head">
+      <h2>Свой домен</h2>
+      <span>{{ server_ip }}</span>
+    </div>
+    <p class="muted">Создайте DNS A-запись домена на IP сервера, затем сохраните домен здесь и выполните команду на сервере.</p>
+    <div class="form-grid">
+      <label class="wide">
+        Домен
+        <input name="domain" placeholder="billing.example.com">
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="primary" type="submit">Сохранить Base URL</button>
+    </div>
+  </form>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Текущий адрес</h2>
+      <span>Base URL</span>
+    </div>
+    <p class="muted">{{ domain_base_url }}</p>
+    <p class="muted">Сейчас открыт хост: {{ current_host }}</p>
+  </aside>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Команда</h2>
+      <span>root</span>
+    </div>
+    <p class="muted">После DNS A-записи замените домен в `.env` и перезапустите Caddy.</p>
+    <code class="code-block">cd /opt/server-billing<br>nano .env<br># BASE_URL=https://billing.example.com<br># CADDY_SITE_ADDRESS=billing.example.com<br>docker compose -f docker-compose.prod.yml up -d --force-recreate caddy scheduler</code>
+  </aside>
+</section>
+
+<section class="page-head" id="ssl">
+  <div>
+    <p class="eyebrow">Мониторинг</p>
+    <h2>SSL-сертификаты</h2>
+  </div>
+  <a class="secondary-link" href="/settings#ssl">Обновить</a>
+</section>
+{% if ssl_saved %}
+<div class="notice success">Настройки SSL сохранены.</div>
+{% endif %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Состояние сертификатов</h2>
+    <span>{{ ssl_results|length }}</span>
+  </div>
+  <p class="muted">
+    Проверяются домены серверов (поле «Домен для проверки SSL») и отдельный список ниже.
+    Уведомление в Telegram приходит, когда до конца сертификата остаётся {{ ssl_threshold }} дн. или меньше.
+  </p>
+  <div class="table-wrap">
+    <table class="server-table">
+      <thead>
+        <tr>
+          <th>Цель</th>
+          <th>Домен</th>
+          <th>Источник</th>
+          <th>Действует до</th>
+          <th>Осталось</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in ssl_results %}
+        <tr>
+          <td data-label="Цель"><strong>{{ item.label }}</strong></td>
+          <td data-label="Домен">{{ item.host }}:{{ item.port }}</td>
+          <td data-label="Источник">{{ "сервер" if item.source == "server" else "список" }}</td>
+          <td data-label="Действует до">{{ item.expiry or "—" }}</td>
+          <td data-label="Осталось">
+            {% if not item.ok %}
+              <span class="badge overdue">ошибка</span>
+            {% elif item.days_left < 0 %}
+              <span class="badge overdue">истёк</span>
+            {% elif item.days_left <= ssl_threshold %}
+              <span class="badge urgent">{{ item.days_left }} дн.</span>
+            {% elif item.days_left <= 14 %}
+              <span class="badge soon">{{ item.days_left }} дн.</span>
+            {% else %}
+              <span class="badge ok">{{ item.days_left }} дн.</span>
+            {% endif %}
+          </td>
+          <td class="actions" data-label="">
+            {% if item.source == "monitor" %}
+            <form method="post" action="/ssl/{{ item.monitor_id }}/delete" onsubmit="return confirm('Убрать домен из мониторинга?')">
+              <button class="link-button danger-text" type="submit">Удалить</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">Нет целей для проверки. Добавьте домен ниже или укажите его в карточке сервера.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% for item in ssl_results if not item.ok and item.error %}
+  <p class="sync-status error">{{ item.host }}: {{ item.error }}</p>
+  {% endfor %}
+</section>
+
+<section class="settings-grid">
+  <form class="panel" method="post" action="/ssl/add">
+    <div class="panel-head">
+      <h2>Добавить домен</h2>
+      <span>отдельный список</span>
+    </div>
+    <div class="form-grid">
+      <label class="wide">
+        Домен
+        <input name="host" placeholder="example.com" required>
+      </label>
+      <label>
+        Порт
+        <input type="number" min="1" max="65535" name="port" value="443">
+      </label>
+      <label>
+        Метка
+        <input name="label" placeholder="Название (необязательно)">
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="primary" type="submit">Добавить</button>
+    </div>
+  </form>
+
+  <form class="panel" method="post" action="/ssl/threshold">
+    <div class="panel-head">
+      <h2>Порог уведомления</h2>
+      <span>дней</span>
+    </div>
+    <div class="form-grid">
+      <label>
+        За сколько дней предупреждать
+        <input type="number" min="1" max="365" name="ssl_alert_days" value="{{ ssl_threshold }}">
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="secondary" type="submit">Сохранить</button>
+    </div>
+  </form>
+</section>
 <script>
   const currencySelect = document.querySelector("#currency-base-select");
   const sourceLink = document.querySelector("#currency-source-link");
