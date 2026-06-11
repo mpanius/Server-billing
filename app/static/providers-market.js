@@ -288,10 +288,10 @@
     };
 
     countryScroll.innerHTML = [
-      `<button type="button" class="market-country active" data-country="" title="Все страны"><img class="market-flag-img market-flag-img-all" src="/static/flags/world.svg" alt="Все" width="14" height="10"></button>`,
+      `<button type="button" class="market-country active" data-country="" title="Все страны"><img class="market-flag-img market-flag-img-all" src="/static/flags/world.svg" alt="Все" width="16" height="12"></button>`,
       ...countries.map(
         (country) =>
-          `<button type="button" class="market-country" data-country="${escapeHtml(country.code)}" title="${escapeHtml(country.name)}">${flagImg(country, "market-flag-img", { width: 14, height: 10 })}<span class="market-country-code">${escapeHtml(country.code)}</span></button>`,
+          `<button type="button" class="market-country" data-country="${escapeHtml(country.code)}" title="${escapeHtml(country.name)}">${flagImg(country, "market-flag-img", { width: 16, height: 12 })}<span class="market-country-code">${escapeHtml(country.code)}</span></button>`,
       ),
     ].join("");
 
