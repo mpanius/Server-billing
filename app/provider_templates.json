@@ -374,5 +374,16 @@
     "billing_period_days": 30,
     "service_hint": "Customer Portal: services -> нужный сервер.",
     "notes": "Dedicated, VPS и bare metal. Крупный EU/US провайдер."
+  },
+  {
+    "name": "4VPS",
+    "domain": "4vps.su",
+    "website_url": "https://4vps.su/",
+    "panel_url": "https://4vps.su/",
+    "payment_url": "https://4vps.su/",
+    "default_currency": "RUB",
+    "billing_period_days": 30,
+    "service_hint": "Личный кабинет или бот @FourServer_bot: выберите локацию и тариф.",
+    "notes": "VPS, dedicated, хостинг и IPv4. Много локаций по миру."
   }
 ]

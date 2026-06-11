@@ -189,4 +189,45 @@
     </div>
   </form>
 </dialog>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+    const shouldOpen = params.get("add") === "server";
+    const templateDomain = (params.get("template") || "").trim().toLowerCase();
+    if (!shouldOpen) return;
+
+    const modal = document.querySelector("#add-server");
+    if (!modal) return;
+    modal.showModal();
+
+    const templates = {{ provider_templates|tojson }};
+    const template = templates.find((item) => String(item.domain || "").toLowerCase() === templateDomain);
+    const picker = modal.querySelector("[data-template-picker]");
+    const setValue = (selector, value, overwrite = false) => {
+      const field = modal.querySelector(selector);
+      if (!field || value === undefined || value === null || value === "") return;
+      if (overwrite || !field.value) field.value = value;
+    };
+    const applyTemplate = (item) => {
+      if (!item) return;
+      setValue("#server-provider", item.domain || item.name, true);
+      setValue("#server-panel-url", item.panel_url, true);
+      setValue("#server-payment-url", item.payment_url || item.panel_url, true);
+      setValue("#server-period", item.billing_period_days, true);
+      setValue("#server-currency", item.default_currency, true);
+      const notes = [item.service_hint, item.notes].filter(Boolean).join("\n");
+      setValue("#server-notes", notes, true);
+      if (picker && window.setTemplatePickerChoice) {
+        setTemplatePickerChoice(picker, item);
+      }
+    };
+
+    if (template) {
+      applyTemplate(template);
+    }
+
+    history.replaceState({}, "", "/");
+  });
+</script>
 {% endblock %}

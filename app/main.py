@@ -45,7 +45,7 @@ from app.repository import (
 from app.reminders import send_backup, send_due_reminders, send_telegram
 from app.connectors import ConnectorError, build_connector
 from app.provider_sync import sync_account
-from app.provider_templates import list_provider_templates
+from app.provider_templates import list_provider_templates, provider_catalog_meta, provider_countries
 from app.system_update import start_system_update
 from app.sslcheck import run_all as run_ssl_checks
 from app.terminal import terminal_websocket, web_terminal_enabled
@@ -687,9 +687,19 @@ def calendar_ics() -> Response:
     )
 
 
-@app.get("/providers")
-def providers_page() -> RedirectResponse:
-    return RedirectResponse("/", status_code=302)
+@app.get("/providers", response_class=HTMLResponse)
+def providers_page(request: Request) -> HTMLResponse:
+    providers = list_provider_templates()
+    return templates.TemplateResponse(
+        "providers.html",
+        {
+            "request": request,
+            "providers": providers,
+            "countries": provider_countries(providers),
+            "catalog": provider_catalog_meta(),
+            "donation_url": DONATION_URL,
+        },
+    )
 
 
 @app.get("/settings", response_class=HTMLResponse)

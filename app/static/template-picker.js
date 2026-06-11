@@ -132,4 +132,10 @@
       if (!root.contains(event.target)) closeMenu();
     });
   };
+
+  window.setTemplatePickerChoice = (root, item) => {
+    if (!root || !item) return;
+    const input = root.querySelector(".template-picker-input");
+    if (input) input.value = labelFor(item);
+  };
 })();
