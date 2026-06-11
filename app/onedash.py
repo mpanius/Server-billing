@@ -15,6 +15,16 @@ from app.connectors import ConnectorError, RemoteService
 logger = logging.getLogger(__name__)
 
 DEFAULT_API_BASE = "https://rdp-onedash.ru/web-api"
+CABINET_URL = "https://rdp-onedash.ru/cabinet"
+
+LOCATION_LABELS = {
+    "msk": "Москва",
+    "ams": "Амстердам",
+}
+LOCATION_CODES = {
+    "msk": "RU",
+    "ams": "NL",
+}
 
 VPS_STATUS_MAP = {
     "runned": "active",
@@ -162,6 +172,26 @@ def _parse_finish_date(raw: object) -> datetime | None:
     return None
 
 
+def _location_label(location: str) -> str:
+    key = location.strip().lower()
+    return LOCATION_LABELS.get(key, location.upper() if location else "")
+
+
+def _location_code(location: str) -> str:
+    key = location.strip().lower()
+    return LOCATION_CODES.get(key, "")
+
+
+def _build_service_name(tariff_name: str, location: str, ip_address: str = "", os_name: str = "") -> str:
+    label = _location_label(location)
+    title = f"{tariff_name} ({label})" if label else tariff_name
+    if ip_address:
+        return f"{title} — {ip_address}"
+    if os_name:
+        return f"{title} — {os_name}"
+    return title
+
+
 def _services_from_order(order: dict[str, object], tariffs: dict[int, dict[str, object]]) -> list[RemoteService]:
     order_id = str(order.get("order_id") or "").strip()
     tariff = order.get("tariff") if isinstance(order.get("tariff"), dict) else {}
@@ -171,6 +201,7 @@ def _services_from_order(order: dict[str, object], tariffs: dict[int, dict[str, 
     except (TypeError, ValueError):
         tariff_id = 0
     location = str(order.get("location") or "").strip().lower()
+    location_code = _location_code(location)
     finish_time = _parse_finish_date(order.get("finish_time"))
     next_payment_date = finish_time.date() if finish_time else None
     amount, billing_period_days, currency = _monthly_amount(tariffs, tariff_id, location)
@@ -181,12 +212,14 @@ def _services_from_order(order: dict[str, object], tariffs: dict[int, dict[str, 
             return [
                 RemoteService(
                     service_id=order_id,
-                    name=f"{tariff_name} {location.upper()}".strip(),
+                    name=_build_service_name(tariff_name, location),
                     status="active",
                     next_payment_date=next_payment_date,
                     amount=amount,
                     currency=currency,
                     billing_period_days=billing_period_days,
+                    payment_url=CABINET_URL,
+                    location=location_code,
                 )
             ]
         return []
@@ -201,23 +234,18 @@ def _services_from_order(order: dict[str, object], tariffs: dict[int, dict[str, 
         ip_address = str(vps.get("vps_ip") or "").strip()
         os_name = str(vps.get("os") or "").strip()
         status_raw = str(vps.get("vps_status") or "").strip().lower()
-        name_parts = [tariff_name]
-        if location:
-            name_parts.append(location.upper())
-        if os_name:
-            name_parts.append(os_name)
-        if ip_address:
-            name_parts.append(ip_address)
         services.append(
             RemoteService(
                 service_id=f"{order_id}:{vps_id}" if order_id else vps_id,
-                name=" · ".join(name_parts),
+                name=_build_service_name(tariff_name, location, ip_address, os_name),
                 ip_address=ip_address,
                 status=VPS_STATUS_MAP.get(status_raw, "active"),
                 next_payment_date=next_payment_date,
                 amount=amount,
                 currency=currency,
                 billing_period_days=billing_period_days,
+                payment_url=CABINET_URL,
+                location=location_code,
             )
         )
     return services

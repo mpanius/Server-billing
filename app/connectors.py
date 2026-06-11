@@ -35,6 +35,7 @@ class RemoteService:
     currency: str = ""
     payment_url: str = ""
     billing_period_days: int | None = None
+    location: str = ""
 
 
 @runtime_checkable

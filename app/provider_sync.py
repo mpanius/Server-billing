@@ -3,7 +3,7 @@
 Поток: коннектор провайдера -> нормализованные услуги -> upsert серверов.
 Политика конфликтов:
   - из API обновляем: next_payment_date, amount, currency, status, payment_url;
-  - name и ip_address — только если у нас пусто (ручное имя не перетираем);
+  - name — только если пусто или совпадает с service_id (ручное имя не перетираем);
   - server_password, server_login, notes, billing_period_days — не трогаем никогда;
   - сервер с sync_locked=1 пропускается целиком (ручной режим важнее);
   - услуга, пропавшая у провайдера, помечается status='deleted', но не удаляется.
@@ -11,21 +11,26 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from app.connectors import ConnectorError, RemoteService, build_connector
 from app.models import HostingAccount, Server
+from app.onedash import CABINET_URL
 from app.repository import (
     create_server,
     get_account,
     list_auto_sync_accounts,
     servers_for_account,
     set_account_sync_result,
+    update_account_urls,
     update_server_from_sync,
 )
 
 logger = logging.getLogger(__name__)
+
+_AUTO_NAME_PATTERN = re.compile(r"^\d+(:\d+)?$")
 
 
 @dataclass
@@ -51,12 +56,19 @@ class SyncResult:
 
 def _new_server_payload(account: HostingAccount, service: RemoteService) -> dict[str, object]:
     next_date = service.next_payment_date or (date.today() + timedelta(days=30))
+    panel_url = account.panel_url
+    payment_url = service.payment_url or account.payment_url
+    if account.integration_type == "onedash":
+        if _is_stale_onedash_url(panel_url):
+            panel_url = CABINET_URL
+        if _is_stale_onedash_url(payment_url):
+            payment_url = CABINET_URL
     return {
         "hosting_account_id": account.id,
         "name": service.name or service.service_id,
         "provider": account.provider,
         "ip_address": service.ip_address,
-        "location": "",
+        "location": service.location or "",
         "server_login": "",
         "server_password": "",
         "service_id": service.service_id,
@@ -64,13 +76,32 @@ def _new_server_payload(account: HostingAccount, service: RemoteService) -> dict
         "currency": service.currency or "RUB",
         "billing_period_days": service.billing_period_days or 30,
         "next_payment_date": next_date.isoformat(),
-        "payment_url": service.payment_url or account.payment_url,
-        "panel_url": account.panel_url,
+        "payment_url": payment_url,
+        "panel_url": panel_url,
         "notes": "",
     }
 
 
-def _diff_fields(server: Server, service: RemoteService) -> tuple[dict[str, object], list[str]]:
+def _needs_name_refresh(server: Server) -> bool:
+    name = (server.name or "").strip()
+    if not name:
+        return True
+    service_id = (server.service_id or "").strip()
+    if service_id and name == service_id:
+        return True
+    return bool(_AUTO_NAME_PATTERN.match(name))
+
+
+def _is_stale_onedash_url(url: str) -> bool:
+    return "clientarea.php" in (url or "")
+
+
+def _diff_fields(
+    server: Server,
+    service: RemoteService,
+    *,
+    account: HostingAccount,
+) -> tuple[dict[str, object], list[str]]:
     fields: dict[str, object] = {}
     notes: list[str] = []
     if service.next_payment_date and service.next_payment_date != server.next_payment_date:
@@ -83,11 +114,30 @@ def _diff_fields(server: Server, service: RemoteService) -> tuple[dict[str, obje
     if service.status and service.status != server.status:
         fields["status"] = service.status
         notes.append(f"{server.name}: статус {server.status} -> {service.status}")
-    if service.payment_url and service.payment_url != server.payment_url:
-        fields["payment_url"] = service.payment_url
+    payment_url = service.payment_url or account.payment_url
+    if account.integration_type == "onedash" and _is_stale_onedash_url(server.payment_url):
+        payment_url = CABINET_URL
+    if payment_url and payment_url != server.payment_url:
+        fields["payment_url"] = payment_url
+    panel_url = account.panel_url
+    if account.integration_type == "onedash" and _is_stale_onedash_url(server.panel_url):
+        panel_url = CABINET_URL
+    if panel_url and panel_url != server.panel_url:
+        fields["panel_url"] = panel_url
+    if service.name and _needs_name_refresh(server) and service.name != server.name:
+        fields["name"] = service.name
+        notes.append(f"{server.name or server.service_id}: имя -> {service.name}")
     if service.ip_address and not server.ip_address:
         fields["ip_address"] = service.ip_address
+    if service.location and not (server.location or "").strip():
+        fields["location"] = service.location
     return fields, notes
+
+
+def _refresh_onedash_account_urls(account: HostingAccount) -> HostingAccount:
+    update_account_urls(account.id, CABINET_URL, CABINET_URL)
+    refreshed = get_account(account.id)
+    return refreshed or account
 
 
 def sync_account(account_id: int, *, create_missing: bool = True) -> SyncResult:
@@ -101,6 +151,11 @@ def sync_account(account_id: int, *, create_missing: bool = True) -> SyncResult:
         result.status = "error"
         result.message = "Для ручного аккаунта синхронизация недоступна."
         return result
+
+    if account.integration_type == "onedash" and (
+        _is_stale_onedash_url(account.panel_url) or _is_stale_onedash_url(account.payment_url)
+    ):
+        account = _refresh_onedash_account_urls(account)
 
     try:
         remote_services = connector.list_services()
@@ -127,7 +182,7 @@ def sync_account(account_id: int, *, create_missing: bool = True) -> SyncResult:
         if server.sync_locked:
             result.skipped += 1
             continue
-        fields, notes = _diff_fields(server, service)
+        fields, notes = _diff_fields(server, service, account=account)
         if fields:
             update_server_from_sync(server.id, fields)
             result.updated += 1

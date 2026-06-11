@@ -229,11 +229,13 @@ def delete_server(server_id: int) -> None:
 SYNCABLE_SERVER_FIELDS = {
     "name",
     "ip_address",
+    "location",
     "amount",
     "currency",
     "status",
     "next_payment_date",
     "payment_url",
+    "panel_url",
 }
 
 
@@ -262,6 +264,18 @@ def update_server_from_sync(server_id: int, fields: dict[str, object]) -> None:
         connection.execute(
             f"UPDATE servers SET {columns}, external_synced_at = ? WHERE id = ?",
             values,
+        )
+
+
+def update_account_urls(account_id: int, panel_url: str, payment_url: str) -> None:
+    with connect() as connection:
+        connection.execute(
+            """
+            UPDATE hosting_accounts
+            SET panel_url = ?, payment_url = ?
+            WHERE id = ?
+            """,
+            (panel_url, payment_url, account_id),
         )
 
 
