@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar as calendar_lib
+import json
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
@@ -50,7 +51,13 @@ from app.provider_templates import list_provider_templates, provider_catalog_met
 from app.system_update import start_system_update
 from app.sslcheck import run_all as run_ssl_checks
 from app.terminal import terminal_websocket, web_terminal_enabled
-from app.telegram import build_telegram_share_url, detect_telegram_chats, telegram_bot_username
+from app.telegram import (
+    build_telegram_share_url,
+    detect_telegram_chats,
+    ensure_telegram_polling,
+    telegram_bot_link,
+    telegram_bot_username,
+)
 from app.version import current_version
 
 app = FastAPI(title=settings.app_name)
@@ -66,6 +73,27 @@ RU_MONTHS = [
 RU_WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 DONATION_URL = "https://t.me/AlekseyRdonate_bot"
 templates.env.globals["donation_url"] = DONATION_URL
+
+
+def _load_detected_telegram_chats() -> list[dict[str, str]]:
+    raw = get_app_setting("telegram_detected_chats", "")
+    if not raw:
+        return []
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(payload, list):
+        return []
+    return [item for item in payload if isinstance(item, dict) and item.get("id")]
+
+
+def _clear_detected_telegram_chats() -> None:
+    set_app_setting("telegram_detected_chats", "")
+
+
+def _save_detected_telegram_chats(chats: list[dict[str, str]]) -> None:
+    set_app_setting("telegram_detected_chats", json.dumps(chats, ensure_ascii=False))
 
 
 @app.on_event("startup")
@@ -745,6 +773,8 @@ def settings_page(request: Request, saved: str = "", tested: str = "") -> HTMLRe
             "tested": tested,
             "bot": request.query_params.get("bot", ""),
             "chat": request.query_params.get("chat", ""),
+            "detected_chats": _load_detected_telegram_chats(),
+            "telegram_bot_link": telegram_bot_link(str(current.get("telegram_bot_username", ""))),
             "backup_sent": request.query_params.get("backup_sent", ""),
             "checked": request.query_params.get("checked", ""),
             "rates": request.query_params.get("rates", ""),
@@ -786,6 +816,7 @@ def save_telegram_bot(telegram_bot_token: str = Form("")) -> RedirectResponse:
         return RedirectResponse("/settings?bot=0#telegram-setup", status_code=303)
     try:
         username = telegram_bot_username(token)
+        ensure_telegram_polling(token)
     except Exception:
         return RedirectResponse("/settings?bot=0#telegram-setup", status_code=303)
     set_app_setting("telegram_bot_token", token)
@@ -811,12 +842,36 @@ def detect_telegram_chat() -> RedirectResponse:
     try:
         chats = detect_telegram_chats(token)
     except Exception:
-        chats = []
+        return RedirectResponse("/settings?chat=api#telegram-setup", status_code=303)
     if not chats:
         return RedirectResponse("/settings?chat=0#telegram-setup", status_code=303)
-    chat = chats[-1]
-    set_app_setting("telegram_chat_id", chat["id"])
-    set_app_setting("telegram_chat_title", f"{chat['title']} ({chat['type']})")
+    if len(chats) == 1:
+        chat = chats[0]
+        set_app_setting("telegram_chat_id", chat["id"])
+        set_app_setting("telegram_chat_title", f"{chat['title']} ({chat['type_label']})")
+        _clear_detected_telegram_chats()
+        return RedirectResponse("/settings?chat=1#telegram-setup", status_code=303)
+    _save_detected_telegram_chats(chats)
+    return RedirectResponse("/settings?chat=pick#telegram-setup", status_code=303)
+
+
+@app.post("/settings/telegram/chat/select")
+def select_telegram_chat(chat_id: str = Form("")) -> RedirectResponse:
+    chat_id = chat_id.strip()
+    if not chat_id:
+        return RedirectResponse("/settings?chat=0#telegram-setup", status_code=303)
+    chats = _load_detected_telegram_chats()
+    selected = next((chat for chat in chats if str(chat.get("id")) == chat_id), None)
+    if not selected:
+        set_app_setting("telegram_chat_id", chat_id)
+        set_app_setting("telegram_chat_title", "выбран вручную")
+        _clear_detected_telegram_chats()
+        return RedirectResponse("/settings?chat=1#telegram-setup", status_code=303)
+    set_app_setting("telegram_chat_id", str(selected["id"]))
+    title = str(selected.get("title") or "чат")
+    type_label = str(selected.get("type_label") or selected.get("type") or "чат")
+    set_app_setting("telegram_chat_title", f"{title} ({type_label})")
+    _clear_detected_telegram_chats()
     return RedirectResponse("/settings?chat=1#telegram-setup", status_code=303)
 
 

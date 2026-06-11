@@ -1478,10 +1478,80 @@ td strong {
 }
 
 .setup-step form,
-.split-actions {
+.split-actions,
+.setup-inline-form {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
+}
+
+.setup-checklist {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.setup-checklist li + li {
+  margin-top: 4px;
+}
+
+.setup-advanced {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.setup-advanced summary {
+  cursor: pointer;
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.setup-advanced[open] summary {
+  margin-bottom: 8px;
+}
+
+.telegram-chat-picker {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafbfd;
+}
+
+.telegram-chat-picker-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.telegram-chat-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+}
+
+.telegram-chat-option:has(input:checked) {
+  border-color: #b9cef6;
+  background: #f3f7ff;
+}
+
+.telegram-chat-option-body {
+  display: grid;
+  gap: 2px;
+}
+
+.telegram-chat-option-body small {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .setup-step input {

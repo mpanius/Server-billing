@@ -55,9 +55,13 @@
 {% if chat == "1" %}
 <div class="notice success">Telegram chat сохранен.</div>
 {% elif chat == "0" %}
-<div class="notice">Не удалось найти Telegram chat. Напишите любое сообщение боту и попробуйте снова.</div>
+<div class="notice">Сообщений от бота не найдено. Откройте бота в Telegram, нажмите <strong>Start</strong> или напишите «Привет», затем снова нажмите «Найти мой чат».</div>
+{% elif chat == "api" %}
+<div class="notice">Telegram API не ответил. Проверьте токен бота и доступ сервера к api.telegram.org.</div>
 {% elif chat == "need-bot" %}
 <div class="notice">Сначала подключите Telegram bot.</div>
+{% elif chat == "pick" and not detected_chats %}
+<div class="notice">Список чатов устарел. Нажмите «Найти мой чат» ещё раз.</div>
 {% endif %}
 
 <section class="panel setup-wizard" id="telegram-setup">
@@ -80,20 +84,54 @@
     <article class="setup-step {{ 'done' if chat_configured else '' }}">
       <span>2</span>
       <div>
-        <h3>Добавить Telegram chat</h3>
-        <p class="muted">Chat ID нужен как адрес доставки. Напишите любое сообщение боту, затем нажмите поиск или вставьте chat id вручную.</p>
-        <div class="split-actions">
-          <form method="post" action="/settings/telegram/chat/detect">
-            <button class="secondary" type="submit" {% if not token_configured %}disabled{% endif %}>Найти chat id</button>
-          </form>
-          <form method="post" action="/settings/telegram/chat">
-            <input name="telegram_chat_id" value="{{ notification.telegram_chat_id }}" placeholder="647793683">
-            <button class="secondary" type="submit">Сохранить chat</button>
+        <h3>Куда отправлять уведомления</h3>
+        <p class="muted">Панель сама найдёт ваш чат через Telegram API. Chat ID вводить вручную не обязательно.</p>
+        <ol class="setup-checklist">
+          <li>
+            {% if token_configured and telegram_bot_link %}
+            Откройте бота
+            <a href="{{ telegram_bot_link }}" target="_blank" rel="noreferrer">{{ notification.telegram_bot_username }}</a>
+            {% else %}
+            Сначала сохраните bot token на шаге 1
+            {% endif %}
+          </li>
+          <li>В Telegram нажмите <strong>Start</strong> или отправьте любое сообщение</li>
+          <li>Вернитесь сюда и нажмите «Найти мой чат»</li>
+        </ol>
+        <form method="post" action="/settings/telegram/chat/detect" class="setup-inline-form">
+          <button class="primary" type="submit" {% if not token_configured %}disabled{% endif %}>Найти мой чат</button>
+        </form>
+
+        {% if detected_chats %}
+        <div class="telegram-chat-picker">
+          <p class="muted">Найдено чатов: {{ detected_chats|length }}. Выберите, куда слать уведомления:</p>
+          <form method="post" action="/settings/telegram/chat/select" class="telegram-chat-picker-form">
+            {% for chat in detected_chats %}
+            <label class="telegram-chat-option">
+              <input type="radio" name="chat_id" value="{{ chat.id }}" {% if loop.first %}checked{% endif %}>
+              <span class="telegram-chat-option-body">
+                <strong>{{ chat.title }}</strong>
+                <small>{{ chat.type_label }} · id {{ chat.id }}</small>
+              </span>
+            </label>
+            {% endfor %}
+            <button class="secondary" type="submit">Подключить выбранный чат</button>
           </form>
         </div>
-        {% if notification.telegram_chat_title %}
-        <small class="muted">Текущий чат: {{ notification.telegram_chat_title }}</small>
         {% endif %}
+
+        {% if notification.telegram_chat_title %}
+        <small class="muted">Текущий чат: {{ notification.telegram_chat_title }}{% if notification.telegram_chat_id %} · id {{ notification.telegram_chat_id }}{% endif %}</small>
+        {% endif %}
+
+        <details class="setup-advanced">
+          <summary>Вставить chat id вручную</summary>
+          <p class="muted">Нужно только если автопоиск не сработал. Chat ID можно узнать у @userinfobot или @getmyid_bot.</p>
+          <form method="post" action="/settings/telegram/chat" class="setup-inline-form">
+            <input name="telegram_chat_id" value="{{ notification.telegram_chat_id }}" placeholder="647793683">
+            <button class="secondary" type="submit">Сохранить chat id</button>
+          </form>
+        </details>
       </div>
     </article>
     <article class="setup-step {{ 'done' if token_configured and chat_configured else '' }}" id="telegram-check">
