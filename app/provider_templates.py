@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -8,6 +9,20 @@ from app.config import settings
 from app.countries import all_country_options, country_labels, country_label
 
 
+_RU_MONTHS = (
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+)
 APP_DIR = Path(__file__).resolve().parent
 TEMPLATES_PATH = APP_DIR / "provider_templates.json"
 CATALOG_PATH = APP_DIR / "provider_catalog.json"
@@ -68,6 +83,20 @@ def load_plans_by_domain() -> dict[str, list[dict[str, object]]]:
         if isinstance(raw, dict):
             return {str(key): list(value) for key, value in raw.items()}
     return {}
+
+
+def format_ru_calendar_date(value: str) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    for candidate in (raw[:10], raw):
+        for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
+            try:
+                parsed = datetime.strptime(candidate, fmt)
+                return f"{parsed.day} {_RU_MONTHS[parsed.month - 1]} {parsed.year}"
+            except ValueError:
+                continue
+    return raw
 
 
 def plans_prices_as_of() -> str:
@@ -207,29 +236,35 @@ def provider_catalog_meta() -> dict[str, object]:
         from app.catalog_sync import catalog_sync_status
 
         status = catalog_sync_status()
+        prices_as_of = str(bundle.get("prices_as_of") or plans_prices_as_of())
         return {
             "notice": str(bundle.get("notice") or ""),
             "promos": list(bundle.get("promos") or []),
             "updated_at": str(bundle.get("updated_at") or status.get("updated_at", "")),
-            "prices_as_of": str(bundle.get("prices_as_of") or plans_prices_as_of()),
+            "prices_as_of": prices_as_of,
+            "prices_as_of_label": format_ru_calendar_date(prices_as_of),
             "source": status.get("source", "remote"),
             "sync_enabled": bool((settings.provider_catalog_url or "").strip()),
         }
     payload = _load_json(CATALOG_PATH)
     if isinstance(payload, dict):
+        prices_as_of = plans_prices_as_of()
         return {
             "notice": str(payload.get("notice", "")),
             "promos": list(payload.get("promos") or []),
             "updated_at": "",
-            "prices_as_of": plans_prices_as_of(),
+            "prices_as_of": prices_as_of,
+            "prices_as_of_label": format_ru_calendar_date(prices_as_of),
             "source": "bundled",
             "sync_enabled": bool((settings.provider_catalog_url or "").strip()),
         }
+    prices_as_of = plans_prices_as_of()
     return {
         "notice": "",
         "promos": [],
         "updated_at": "",
-        "prices_as_of": plans_prices_as_of(),
+        "prices_as_of": prices_as_of,
+        "prices_as_of_label": format_ru_calendar_date(prices_as_of),
         "source": "bundled",
         "sync_enabled": bool((settings.provider_catalog_url or "").strip()),
     }

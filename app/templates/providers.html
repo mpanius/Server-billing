@@ -6,15 +6,15 @@
     <h1>Провайдеры</h1>
     <p class="muted market-notice" id="market-notice">{{ catalog.notice }}</p>
     <p class="muted market-updated">
-      {% if catalog.prices_as_of %}Цены актуальны на: {{ catalog.prices_as_of }}.{% endif %}
+      {% if catalog.prices_as_of_label %}Цены актуальны на {{ catalog.prices_as_of_label }}.{% endif %}
       {% if catalog.updated_at %} Каталог: {{ catalog.updated_at }}{% if catalog.source == "remote" %} · remote{% endif %}.{% endif %}
     </p>
   </div>
   <div class="market-head-actions">
     <span class="market-count">{{ providers|length }} в каталоге</span>
     {% if catalog.sync_enabled %}
-    <form method="post" action="/providers/sync">
-      <button class="secondary" type="submit">Обновить каталог</button>
+    <form method="post" action="/providers/sync" id="market-catalog-sync-form">
+      <button class="secondary" type="submit" id="market-catalog-sync-btn">Обновить цены</button>
     </form>
     {% endif %}
   </div>
@@ -22,7 +22,7 @@
 
 <section class="panel market-promos-panel" id="market-promos"></section>
 {% if request.query_params.get("catalog") == "1" %}
-<div class="notice success">Каталог провайдеров обновлён.</div>
+<div class="notice success">Цены и каталог обновлены.</div>
 {% elif request.query_params.get("catalog") == "0" %}
 <div class="notice">Не удалось обновить каталог. Проверьте PROVIDER_CATALOG_URL в .env.</div>
 {% endif %}
@@ -39,6 +39,9 @@
         <span class="market-filter-group-title">Цена</span>
         <input type="number" id="market-filter-price-min" min="0" step="0.01" placeholder="от" aria-label="Цена от">
         <input type="number" id="market-filter-price-max" min="0" step="0.01" placeholder="до" aria-label="Цена до">
+      </div>
+      <div class="market-filter-group market-filter-group-currency">
+        <span class="market-filter-group-title">Вал.</span>
         <select id="market-filter-currency" aria-label="Валюта">
           <option value="">—</option>
           <option value="RUB">RUB</option>
@@ -85,13 +88,22 @@
 <script src="/static/providers-market.js" defer></script>
 <script>
   document.addEventListener("DOMContentLoaded", () => {
+    const syncForm = document.querySelector("#market-catalog-sync-form");
+    const syncBtn = document.querySelector("#market-catalog-sync-btn");
+    syncForm?.addEventListener("submit", () => {
+      if (syncBtn) {
+        syncBtn.disabled = true;
+        syncBtn.textContent = "Обновление…";
+      }
+    });
+
     if (!window.initProvidersMarket) return;
     initProvidersMarket({
       providers: {{ providers|tojson }},
       countries: {{ countries|tojson }},
       promos: {{ catalog.promos|tojson }},
       notice: {{ catalog.notice|tojson }},
-      pricesAsOf: {{ catalog.prices_as_of|tojson }},
+      pricesAsOf: {{ catalog.prices_as_of_label|tojson }},
     });
   });
 </script>
