@@ -35,6 +35,16 @@ LOCATION_ALIASES = {
     "fi": "hel",
     "de": "fra",
 }
+LOCATION_TARIFF_KEYS = {
+    "msk": ("new_prices", "msk_prices"),
+    "ams": ("new_prices_ams", "ams_prices"),
+    "hel": ("new_prices_hel", "hel_prices"),
+    "fra": ("new_prices_fra", "fra_prices"),
+    "nyc": ("new_prices_nyc", "nyc_prices"),
+    "lon": ("new_prices_lon", "lon_prices"),
+}
+STANDARD_PERIODS = (7, 10, 14, 30, 60, 90, 180, 360, 720, 999)
+DEFAULT_RENT_PERIOD = 30
 
 VPS_STATUS_MAP = {
     "runned": "active",
@@ -154,26 +164,108 @@ def _price_bucket(prices: object, currency: str = "RUB") -> list[dict[str, objec
     return []
 
 
+def _decode_tariff_prices(raw: object, currency: str = "RUB") -> list[dict[str, object]]:
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return []
+        try:
+            raw = json.loads(text)
+        except json.JSONDecodeError:
+            return []
+    return _price_bucket(raw, currency)
+
+
 def _location_prices(tariff: dict[str, object], location: str) -> list[dict[str, object]]:
     loc = _normalize_location(location)
     currency = str(tariff.get("currency") or "RUB")
-    direct_key = f"{loc}_prices"
-    direct = tariff.get(direct_key)
-    if direct is not None:
-        bucket = _price_bucket(direct, currency)
+    candidate_keys = list(LOCATION_TARIFF_KEYS.get(loc, (f"new_prices_{loc}", f"{loc}_prices")))
+    for key in candidate_keys:
+        if key not in tariff:
+            continue
+        bucket = _decode_tariff_prices(tariff.get(key), currency)
         if bucket:
             return bucket
 
     for key, value in tariff.items():
-        if not isinstance(key, str) or not key.endswith("_prices"):
+        if not isinstance(key, str):
             continue
-        prefix = key[: -len("_prices")]
-        if prefix != loc:
+        if key in candidate_keys:
             continue
-        bucket = _price_bucket(value, currency)
+        if loc not in key.lower():
+            continue
+        if not (key.endswith("_prices") or key.startswith("new_prices")):
+            continue
+        bucket = _decode_tariff_prices(value, currency)
         if bucket:
             return bucket
     return []
+
+
+def _snap_period(days: int) -> int | None:
+    if days in STANDARD_PERIODS:
+        return days
+    for period in STANDARD_PERIODS:
+        if abs(days - period) <= 2:
+            return period
+    return None
+
+
+def _epoch_from(raw: object) -> float | None:
+    if isinstance(raw, dict):
+        epoch = raw.get("epoch")
+        if isinstance(epoch, (int, float)) and epoch > 0:
+            return float(epoch)
+    if isinstance(raw, (int, float)) and raw > 0:
+        return float(raw)
+    return None
+
+
+def _period_from_timestamps(order: dict[str, object]) -> int | None:
+    finish_epoch = _epoch_from(order.get("finish_time"))
+    start_epoch = _epoch_from(order.get("start_time"))
+    if start_epoch is None:
+        start_epoch = _epoch_from(order.get("create_time"))
+    if start_epoch is None:
+        start_epoch = _epoch_from(order.get("created_at"))
+    if finish_epoch is None or start_epoch is None or finish_epoch <= start_epoch:
+        return None
+    return _snap_period(int(round((finish_epoch - start_epoch) / 86400)))
+
+
+def _order_period(order: dict[str, object]) -> int | None:
+    for key in (
+        "period",
+        "now_days",
+        "nowDays",
+        "order_days",
+        "rent_period",
+        "billing_period",
+        "renew_period",
+        "pay_period",
+        "rental_period",
+    ):
+        period = _parse_period(order.get(key))
+        if period is not None:
+            return period
+    for nested_key in ("payment", "renew", "billing", "price_info"):
+        nested = order.get(nested_key)
+        if isinstance(nested, dict):
+            for key in ("period", "rent_period", "billing_period", "renew_period", "now_days", "nowDays"):
+                period = _parse_period(nested.get(key))
+                if period is not None:
+                    return period
+    finish = order.get("finish_time")
+    if isinstance(finish, dict):
+        for key in ("period", "rent_period", "billing_period", "order_days"):
+            period = _parse_period(finish.get(key))
+            if period is not None:
+                return period
+    return _period_from_timestamps(order)
+
+
+def _resolve_order_period(order: dict[str, object]) -> int:
+    return _order_period(order) or DEFAULT_RENT_PERIOD
 
 
 def _parse_period(raw: object) -> int | None:
@@ -183,7 +275,47 @@ def _parse_period(raw: object) -> int | None:
         period = int(raw)
     except (TypeError, ValueError):
         return None
-    return period if 7 <= period <= 360 else None
+    return period if 7 <= period <= 999 else None
+
+
+def _localized_amount(raw: object, currency: str = "RUB") -> float:
+    if isinstance(raw, dict):
+        for key in (currency.lower(), "ru", "rub", "en", "eu"):
+            amount = _parse_amount(raw.get(key))
+            if amount is not None:
+                return amount
+        return 0.0
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("{"):
+            try:
+                return _localized_amount(json.loads(text), currency)
+            except json.JSONDecodeError:
+                pass
+        return _parse_amount(raw) or 0.0
+    return _parse_amount(raw) or 0.0
+
+
+def _addon_multiplier(period: int) -> float:
+    if period == 999:
+        return 1.0
+    if period > 30:
+        return period / 30
+    return 1.0
+
+
+def _extra_charges(order: dict[str, object], period: int, currency: str) -> float:
+    extra = _localized_amount(order.get("dop_amount"), currency)
+    if extra <= 0:
+        return 0.0
+    return extra * _addon_multiplier(period)
+
+
+def _price_for_period(prices: list[tuple[int, float]], period: int) -> float | None:
+    for row_period, price in prices:
+        if row_period == period:
+            return price
+    return None
 
 
 def _parse_amount(raw: object) -> float | None:
@@ -194,27 +326,6 @@ def _parse_amount(raw: object) -> float | None:
     except (TypeError, ValueError):
         return None
     return amount if amount > 0 else None
-
-
-def _order_period(order: dict[str, object]) -> int | None:
-    for key in ("period", "rent_period", "billing_period", "renew_period", "pay_period"):
-        period = _parse_period(order.get(key))
-        if period is not None:
-            return period
-    for nested_key in ("payment", "renew", "billing", "price_info"):
-        nested = order.get(nested_key)
-        if isinstance(nested, dict):
-            for key in ("period", "rent_period", "billing_period", "renew_period"):
-                period = _parse_period(nested.get(key))
-                if period is not None:
-                    return period
-    finish = order.get("finish_time")
-    if isinstance(finish, dict):
-        for key in ("period", "rent_period", "billing_period"):
-            period = _parse_period(finish.get(key))
-            if period is not None:
-                return period
-    return None
 
 
 def _order_amount_from_payload(order: dict[str, object]) -> tuple[float | None, int | None, str]:
@@ -264,13 +375,14 @@ def _renewal_amount(
     tariff_id: int,
     location: str,
 ) -> tuple[float | None, int, str]:
+    period = _resolve_order_period(order)
     direct_amount, direct_period, direct_currency = _order_amount_from_payload(order)
     if direct_amount is not None:
-        return direct_amount, direct_period or 30, direct_currency
+        return direct_amount, direct_period or period, direct_currency
 
     tariff = tariffs.get(tariff_id)
     if not tariff:
-        return None, 30, "RUB"
+        return None, period, "RUB"
 
     currency = str(tariff.get("currency") or "RUB")
     prices = _price_rows(_location_prices(tariff, location))
@@ -281,21 +393,22 @@ def _renewal_amount(
             location,
             order.get("order_id"),
         )
-        return None, 30, currency
+        return None, period, currency
 
-    preferred_period = _order_period(order)
-    if preferred_period is not None:
-        for period, price in prices:
-            if period == preferred_period:
-                return price, period, currency
+    base = _price_for_period(prices, period)
+    if base is None:
+        logger.warning(
+            "OneDash: нет цены для периода %s (тариф %s, локация %s, order %s).",
+            period,
+            tariff_id,
+            location,
+            order.get("order_id"),
+        )
+        return None, period, currency
 
-    for target in (7, 10, 14, 30, 60, 90, 180, 360):
-        for period, price in prices:
-            if period == target:
-                return price, period, currency
-
-    period, price = min(prices, key=lambda item: item[0])
-    return price, period, currency
+    order_count = max(1, int(order.get("order_count") or 1))
+    total = (base + _extra_charges(order, period, currency)) * order_count
+    return total, period, currency
 
 
 def _parse_finish_date(raw: object) -> datetime | None:

@@ -119,7 +119,10 @@ def _diff_fields(
     if (
         account.integration_type == "onedash"
         and service.billing_period_days
-        and service.billing_period_days != server.billing_period_days
+        and (
+            server.billing_period_days != service.billing_period_days
+            or server.amount <= 0
+        )
     ):
         fields["billing_period_days"] = service.billing_period_days
         notes.append(
