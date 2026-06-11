@@ -1,12 +1,7 @@
 <div class="form-grid">
   <label class="wide">
     Шаблон провайдера
-    <select id="account-provider-template">
-      <option value="">Заполнить вручную</option>
-      {% for item in provider_templates %}
-      <option value="{{ loop.index0 }}">{{ item.name }} · {{ item.domain }}</option>
-      {% endfor %}
-    </select>
+    {% include "_template_picker.html" %}
   </label>
   <label>
     Название аккаунта
@@ -59,23 +54,29 @@
 <script>
   (() => {
     const templates = {{ provider_templates|tojson }};
-    const select = document.querySelector("#account-provider-template");
-    if (!select) return;
+    const templatePicker = document.querySelector(".form-grid [data-template-picker]");
     const setValue = (selector, value, overwrite = false) => {
       const field = document.querySelector(selector);
       if (!field || value === undefined || value === null || value === "") return;
       if (overwrite || !field.value) field.value = value;
     };
-    select.addEventListener("change", () => {
-      const item = templates[Number(select.value)];
-      if (!item) return;
-      setValue("#account-name", item.name, true);
-      setValue("#account-provider", item.domain || item.name, true);
-      setValue("#account-panel-url", item.panel_url);
-      setValue("#account-payment-url", item.payment_url || item.panel_url);
-      const notes = [item.service_hint, item.notes].filter(Boolean).join("\n");
-      setValue("#account-notes", notes);
-    });
+    const bootPicker = () => {
+      if (!templatePicker || !window.initTemplatePicker) return;
+      initTemplatePicker(templatePicker, templates, (item) => {
+        if (!item) return;
+        setValue("#account-name", item.name, true);
+        setValue("#account-provider", item.domain || item.name, true);
+        setValue("#account-panel-url", item.panel_url);
+        setValue("#account-payment-url", item.payment_url || item.panel_url);
+        const notes = [item.service_hint, item.notes].filter(Boolean).join("\n");
+        setValue("#account-notes", notes);
+      });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootPicker);
+    } else {
+      bootPicker();
+    }
 
     const integrationType = document.querySelector("#account-integration-type");
     const integrationFields = document.querySelectorAll(".integration-field");

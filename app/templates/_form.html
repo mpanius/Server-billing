@@ -1,12 +1,7 @@
 <div class="form-grid">
   <label class="wide">
     Шаблон провайдера
-    <select id="server-provider-template">
-      <option value="">Заполнить вручную</option>
-      {% for item in provider_templates %}
-      <option value="{{ loop.index0 }}">{{ item.name }} · {{ item.domain }}</option>
-      {% endfor %}
-    </select>
+    {% include "_template_picker.html" %}
   </label>
   <label class="wide">
     Аккаунт хостинга
@@ -104,22 +99,14 @@
   (() => {
     const templates = {{ provider_templates|tojson }};
     const accounts = {{ account_options|default([])|tojson }};
-    const templateSelect = document.querySelector("#server-provider-template");
+    const templatePicker = document.querySelector("[data-template-picker]");
     const accountSelect = document.querySelector("#server-hosting-account");
     const setValue = (selector, value, overwrite = false) => {
       const field = document.querySelector(selector);
       if (!field || value === undefined || value === null || value === "") return;
       if (overwrite || !field.value) field.value = value;
     };
-    accountSelect?.addEventListener("change", () => {
-      const item = accounts.find((account) => String(account.id) === accountSelect.value);
-      if (!item) return;
-      setValue("#server-provider", item.provider, true);
-      setValue("#server-panel-url", item.panel_url);
-      setValue("#server-payment-url", item.payment_url || item.panel_url);
-    });
-    templateSelect?.addEventListener("change", () => {
-      const item = templates[Number(templateSelect.value)];
+    const applyTemplate = (item) => {
       if (!item) return;
       setValue("#server-provider", item.domain || item.name, true);
       setValue("#server-panel-url", item.panel_url);
@@ -128,6 +115,23 @@
       setValue("#server-currency", item.default_currency, true);
       const notes = [item.service_hint, item.notes].filter(Boolean).join("\n");
       setValue("#server-notes", notes);
+    };
+    const bootPicker = () => {
+      if (templatePicker && window.initTemplatePicker) {
+        initTemplatePicker(templatePicker, templates, (item) => applyTemplate(item));
+      }
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootPicker);
+    } else {
+      bootPicker();
+    }
+    accountSelect?.addEventListener("change", () => {
+      const item = accounts.find((account) => String(account.id) === accountSelect.value);
+      if (!item) return;
+      setValue("#server-provider", item.provider, true);
+      setValue("#server-panel-url", item.panel_url);
+      setValue("#server-payment-url", item.payment_url || item.panel_url);
     });
   })();
 </script>
