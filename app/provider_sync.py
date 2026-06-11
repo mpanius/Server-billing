@@ -4,7 +4,8 @@
 Политика конфликтов:
   - из API обновляем: next_payment_date, amount, currency, status, payment_url;
   - name — только если пусто или совпадает с service_id (ручное имя не перетираем);
-  - server_password, server_login, notes, billing_period_days — не трогаем никогда;
+  - billing_period_days — для OneDash обновляем из API; для остальных не трогаем;
+  - server_password, server_login, notes — не трогаем никогда;
   - сервер с sync_locked=1 пропускается целиком (ручной режим важнее);
   - услуга, пропавшая у провайдера, помечается status='deleted', но не удаляется.
 """
@@ -109,6 +110,15 @@ def _diff_fields(
     if service.amount is not None and abs(service.amount - server.amount) > 0.001:
         fields["amount"] = service.amount
         notes.append(f"{server.name}: сумма {server.amount:g} -> {service.amount:g}")
+    if (
+        account.integration_type == "onedash"
+        and service.billing_period_days
+        and service.billing_period_days != server.billing_period_days
+    ):
+        fields["billing_period_days"] = service.billing_period_days
+        notes.append(
+            f"{server.name}: период {server.billing_period_days} -> {service.billing_period_days} дн."
+        )
     if service.currency and service.currency != server.currency:
         fields["currency"] = service.currency
     if service.status and service.status != server.status:

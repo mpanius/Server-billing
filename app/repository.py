@@ -232,6 +232,7 @@ SYNCABLE_SERVER_FIELDS = {
     "location",
     "amount",
     "currency",
+    "billing_period_days",
     "status",
     "next_payment_date",
     "payment_url",
