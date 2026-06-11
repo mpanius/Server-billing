@@ -107,308 +107,323 @@
   </div>
 </section>
 
-<section class="settings-grid">
-  <form class="panel" method="post" action="/settings">
-    <div class="panel-head">
-      <h2>Расписание</h2>
-      <span>уведомления</span>
-    </div>
-    <div class="form-grid">
-      <label class="wide">
-        Base URL
-        <input name="base_url" value="{{ notification.base_url }}" placeholder="https://example.com">
-      </label>
-      <label>
-        Дни напоминаний
-        <input name="reminder_days" value="{{ notification.reminder_days }}" placeholder="7,3,1,0,-1">
-      </label>
-      <label>
-        Интервал проверки, сек.
-        <input type="number" min="60" name="check_interval_seconds" value="{{ notification.check_interval_seconds }}">
-      </label>
-      <label>
-        Backup в Telegram, дней
-        <input type="number" min="0" name="backup_interval_days" value="{{ notification.backup_interval_days }}">
-      </label>
-      <label>
-        Базовая валюта
-        <select name="currency_base" id="currency-base-select">
-          <option value="RUB" {% if currency.base == "RUB" %}selected{% endif %}>RUB · рубли</option>
-          <option value="USD" {% if currency.base == "USD" %}selected{% endif %}>USD · доллары</option>
-          <option value="EUR" {% if currency.base == "EUR" %}selected{% endif %}>EUR · евро</option>
-          <option value="USDT" {% if currency.base == "USDT" %}selected{% endif %}>USDT · Tether</option>
-        </select>
-      </label>
-      <label class="wide">
-        Курсы к RUB
-        <input name="currency_rates" value="{{ currency.rates }}" placeholder="USD:90,EUR:98,RUB:1">
-      </label>
-    </div>
-    <div class="form-actions">
-      <button class="primary" type="submit">Сохранить</button>
-    </div>
-  </form>
+<section class="settings-section">
+  <div class="settings-section-head">
+    <h2>Расписание и валюты</h2>
+  </div>
+  <div class="settings-row-2">
+    <form class="panel" method="post" action="/settings">
+      <div class="panel-head">
+        <h2>Расписание</h2>
+        <span>уведомления</span>
+      </div>
+      <div class="form-grid">
+        <label class="wide">
+          Base URL
+          <input name="base_url" value="{{ notification.base_url }}" placeholder="https://example.com">
+        </label>
+        <label>
+          Дни напоминаний
+          <input name="reminder_days" value="{{ notification.reminder_days }}" placeholder="7,3,1,0,-1">
+        </label>
+        <label>
+          Интервал проверки, сек.
+          <input type="number" min="60" name="check_interval_seconds" value="{{ notification.check_interval_seconds }}">
+        </label>
+        <label>
+          Backup в Telegram, дней
+          <input type="number" min="0" name="backup_interval_days" value="{{ notification.backup_interval_days }}">
+        </label>
+        <label>
+          Базовая валюта
+          <select name="currency_base" id="currency-base-select">
+            <option value="RUB" {% if currency.base == "RUB" %}selected{% endif %}>RUB · рубли</option>
+            <option value="USD" {% if currency.base == "USD" %}selected{% endif %}>USD · доллары</option>
+            <option value="EUR" {% if currency.base == "EUR" %}selected{% endif %}>EUR · евро</option>
+            <option value="USDT" {% if currency.base == "USDT" %}selected{% endif %}>USDT · Tether</option>
+          </select>
+        </label>
+        <label class="wide">
+          Курсы к RUB
+          <input name="currency_rates" value="{{ currency.rates }}" placeholder="USD:90,EUR:98,RUB:1">
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="primary" type="submit">Сохранить</button>
+      </div>
+    </form>
 
-  <aside class="panel">
-    <div class="panel-head">
-      <h2>Проверка</h2>
-      <span>{{ "токен задан" if token_configured else "токен не задан" }}</span>
+    <aside class="panel panel-sidebar">
+      <div class="panel-head">
+        <h2>Проверка</h2>
+        <span>{{ "токен задан" if token_configured else "токен не задан" }}</span>
+      </div>
+      <p class="muted">Backup и ручная проверка используют подключенный Telegram chat.</p>
+      <form method="post" action="/settings/telegram/backup">
+        <button class="secondary" type="submit">Отправить backup</button>
+      </form>
+      <form method="post" action="/settings/reminders/run">
+        <button class="secondary" type="submit">Проверить уведомления сейчас</button>
+      </form>
+      <form method="post" action="/settings/currency/refresh">
+        <button class="secondary" type="submit">Обновить курсы валют</button>
+      </form>
+      <p class="muted">Курсы обновлены: {{ currency.updated_at or "нет данных" }}</p>
+      <p class="muted">
+        Источник:
+        <a id="currency-source-link" href="{{ 'https://www.coingecko.com/en/coins/tether' if currency.base == 'USDT' else 'https://www.cbr.ru/scripts/XML_daily.asp' }}" target="_blank" rel="noreferrer">
+          {{ "CoinGecko USDT/RUB" if currency.base == "USDT" else "ЦБ РФ XML_daily" }}
+        </a>
+      </p>
+    </aside>
+  </div>
+</section>
+
+<section class="settings-section">
+  <div class="settings-section-head">
+    <h2>Сервис</h2>
+  </div>
+  <div class="settings-row-3">
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>Обновление</h2>
+        <span>{{ version.current_version }}</span>
+      </div>
+      <div class="version-box {{ version.status }}">
+        <div>
+          <span>Статус</span>
+          <strong>
+            {% if version.status == "success" %}успешно
+            {% elif version.status == "running" %}выполняется
+            {% elif version.status == "failed" %}ошибка
+            {% else %}нет данных{% endif %}
+          </strong>
+        </div>
+        <div>
+          <span>Текущая версия</span>
+          <strong>{{ version.current_version }}</strong>
+        </div>
+        {% if version.previous_version %}
+        <div>
+          <span>Предыдущая</span>
+          <strong>{{ version.previous_version }}</strong>
+        </div>
+        {% endif %}
+        {% if version.finished_at or version.started_at %}
+        <div>
+          <span>Время</span>
+          <strong>{{ version.finished_at or version.started_at }}</strong>
+        </div>
+        {% endif %}
+      </div>
+      <p class="muted">{{ version.message }}</p>
+      <p class="muted">Кнопка подтянет свежую версию из репозитория и пересоберет Docker Compose на сервере.</p>
+      <form method="post" action="/settings/update">
+        <button class="secondary" type="submit" {% if not update_enabled %}disabled{% endif %}>Обновить сервис</button>
+      </form>
+    </aside>
+
+    <aside class="panel" id="web-terminal">
+      <div class="panel-head">
+        <h2>Веб-терминал</h2>
+        <span>{{ "включён" if web_terminal_enabled else "выключен" }}</span>
+      </div>
+      <p class="muted">
+        Открывает SSH-сессию к серверу прямо в браузере. Подключение идёт с сервера панели,
+        пароль не покидает сервер. Команды выполняются на выбранном сервере — включайте осознанно.
+      </p>
+      <form method="post" action="/settings/web-terminal">
+        <input type="hidden" name="enabled" value="{{ '0' if web_terminal_enabled else '1' }}">
+        <button class="{{ 'danger' if web_terminal_enabled else 'secondary' }}" type="submit">
+          {{ "Выключить веб-терминал" if web_terminal_enabled else "Включить веб-терминал" }}
+        </button>
+      </form>
+    </aside>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>Пароль</h2>
+        <span>admin</span>
+      </div>
+      <form method="post" action="/settings/password" class="stack-form">
+        <label>
+          Текущий пароль
+          <input type="password" name="current_password" autocomplete="current-password" required>
+        </label>
+        <label>
+          Новый пароль
+          <input type="password" name="new_password" autocomplete="new-password" required>
+        </label>
+        <label>
+          Повтор нового пароля
+          <input type="password" name="new_password_repeat" autocomplete="new-password" required>
+        </label>
+        <button class="secondary" type="submit">Сменить пароль</button>
+      </form>
+    </aside>
+  </div>
+</section>
+
+<section class="settings-section" id="domain">
+  <div class="settings-section-head">
+    <div>
+      <p class="eyebrow">Caddy и HTTPS</p>
+      <h2>Домен</h2>
     </div>
-    <p class="muted">Backup и ручная проверка используют подключенный Telegram chat.</p>
-    <form method="post" action="/settings/telegram/backup">
-      <button class="secondary" type="submit">Отправить backup</button>
+  </div>
+  {% if domain_saved %}
+  <div class="notice success">Base URL сохранён для ссылок в Telegram. Caddy нужно обновить командой ниже.</div>
+  {% endif %}
+  <div class="settings-row-3">
+    <form class="panel" method="post" action="/domain">
+      <div class="panel-head">
+        <h2>Свой домен</h2>
+        <span>{{ server_ip }}</span>
+      </div>
+      <p class="muted">Создайте DNS A-запись домена на IP сервера, затем сохраните домен здесь.</p>
+      <div class="form-grid">
+        <label class="wide">
+          Домен
+          <input name="domain" placeholder="billing.example.com">
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="primary" type="submit">Сохранить Base URL</button>
+      </div>
     </form>
-    <form method="post" action="/settings/reminders/run">
-      <button class="secondary" type="submit">Проверить уведомления сейчас</button>
-    </form>
-    <form method="post" action="/settings/currency/refresh">
-      <button class="secondary" type="submit">Обновить курсы валют</button>
-    </form>
-    <p class="muted">Курсы обновлены: {{ currency.updated_at or "нет данных" }}</p>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>Текущий адрес</h2>
+        <span>Base URL</span>
+      </div>
+      <p class="muted">{{ domain_base_url }}</p>
+      <p class="muted">Сейчас открыт хост: {{ current_host }}</p>
+    </aside>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>Команда</h2>
+        <span>root</span>
+      </div>
+      <p class="muted">После DNS A-записи замените домен в `.env` и перезапустите Caddy.</p>
+      <code class="code-block">cd /opt/server-billing<br>nano .env<br># BASE_URL=https://billing.example.com<br># CADDY_SITE_ADDRESS=billing.example.com<br>docker compose -f docker-compose.prod.yml up -d --force-recreate caddy scheduler</code>
+    </aside>
+  </div>
+</section>
+
+<section class="settings-section" id="ssl">
+  <div class="settings-section-head">
+    <div>
+      <p class="eyebrow">Мониторинг</p>
+      <h2>SSL-сертификаты</h2>
+    </div>
+    <a class="secondary-link" href="/settings#ssl">Обновить</a>
+  </div>
+  {% if ssl_saved %}
+  <div class="notice success">Настройки SSL сохранены.</div>
+  {% endif %}
+  <div class="panel panel-full">
+    <div class="panel-head">
+      <h2>Состояние сертификатов</h2>
+      <span>{{ ssl_results|length }}</span>
+    </div>
     <p class="muted">
-      Источник:
-      <a id="currency-source-link" href="{{ 'https://www.coingecko.com/en/coins/tether' if currency.base == 'USDT' else 'https://www.cbr.ru/scripts/XML_daily.asp' }}" target="_blank" rel="noreferrer">
-        {{ "CoinGecko USDT/RUB" if currency.base == "USDT" else "ЦБ РФ XML_daily" }}
-      </a>
+      Проверяются домены серверов (поле «Домен для проверки SSL») и отдельный список ниже.
+      Уведомление в Telegram приходит, когда до конца сертификата остаётся {{ ssl_threshold }} дн. или меньше.
     </p>
-  </aside>
+    <div class="table-wrap">
+      <table class="server-table">
+        <thead>
+          <tr>
+            <th>Цель</th>
+            <th>Домен</th>
+            <th>Источник</th>
+            <th>Действует до</th>
+            <th>Осталось</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in ssl_results %}
+          <tr>
+            <td data-label="Цель"><strong>{{ item.label }}</strong></td>
+            <td data-label="Домен">{{ item.host }}:{{ item.port }}</td>
+            <td data-label="Источник">{{ "сервер" if item.source == "server" else "список" }}</td>
+            <td data-label="Действует до">{{ item.expiry or "—" }}</td>
+            <td data-label="Осталось">
+              {% if not item.ok %}
+                <span class="badge overdue">ошибка</span>
+              {% elif item.days_left < 0 %}
+                <span class="badge overdue">истёк</span>
+              {% elif item.days_left <= ssl_threshold %}
+                <span class="badge urgent">{{ item.days_left }} дн.</span>
+              {% elif item.days_left <= 14 %}
+                <span class="badge soon">{{ item.days_left }} дн.</span>
+              {% else %}
+                <span class="badge ok">{{ item.days_left }} дн.</span>
+              {% endif %}
+            </td>
+            <td class="actions" data-label="">
+              {% if item.source == "monitor" %}
+              <form method="post" action="/ssl/{{ item.monitor_id }}/delete" onsubmit="return confirm('Убрать домен из мониторинга?')">
+                <button class="link-button danger-text" type="submit">Удалить</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="empty">Нет целей для проверки. Добавьте домен ниже или укажите его в карточке сервера.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% for item in ssl_results if not item.ok and item.error %}
+    <p class="sync-status error">{{ item.host }}: {{ item.error }}</p>
+    {% endfor %}
+  </div>
 
-  <aside class="panel">
-    <div class="panel-head">
-      <h2>Обновление</h2>
-      <span>{{ version.current_version }}</span>
-    </div>
-    <div class="version-box {{ version.status }}">
-      <div>
-        <span>Статус</span>
-        <strong>
-          {% if version.status == "success" %}успешно
-          {% elif version.status == "running" %}выполняется
-          {% elif version.status == "failed" %}ошибка
-          {% else %}нет данных{% endif %}
-        </strong>
+  <div class="settings-row-2">
+    <form class="panel" method="post" action="/ssl/add">
+      <div class="panel-head">
+        <h2>Добавить домен</h2>
+        <span>отдельный список</span>
       </div>
-      <div>
-        <span>Текущая версия</span>
-        <strong>{{ version.current_version }}</strong>
+      <div class="form-grid">
+        <label class="wide">
+          Домен
+          <input name="host" placeholder="example.com" required>
+        </label>
+        <label>
+          Порт
+          <input type="number" min="1" max="65535" name="port" value="443">
+        </label>
+        <label>
+          Метка
+          <input name="label" placeholder="Название (необязательно)">
+        </label>
       </div>
-      {% if version.previous_version %}
-      <div>
-        <span>Предыдущая</span>
-        <strong>{{ version.previous_version }}</strong>
+      <div class="form-actions">
+        <button class="primary" type="submit">Добавить</button>
       </div>
-      {% endif %}
-      {% if version.finished_at or version.started_at %}
-      <div>
-        <span>Время</span>
-        <strong>{{ version.finished_at or version.started_at }}</strong>
-      </div>
-      {% endif %}
-    </div>
-    <p class="muted">{{ version.message }}</p>
-    <p class="muted">Кнопка подтянет свежую версию из репозитория и пересоберет Docker Compose на сервере.</p>
-    <form method="post" action="/settings/update">
-      <button class="secondary" type="submit" {% if not update_enabled %}disabled{% endif %}>Обновить сервис</button>
     </form>
-  </aside>
 
-  <aside class="panel" id="web-terminal">
-    <div class="panel-head">
-      <h2>Веб-терминал</h2>
-      <span>{{ "включён" if web_terminal_enabled else "выключен" }}</span>
-    </div>
-    <p class="muted">
-      Открывает SSH-сессию к серверу прямо в браузере. Подключение идёт с сервера панели,
-      пароль не покидает сервер. Команды выполняются на выбранном сервере — включайте осознанно.
-    </p>
-    <form method="post" action="/settings/web-terminal">
-      <input type="hidden" name="enabled" value="{{ '0' if web_terminal_enabled else '1' }}">
-      <button class="{{ 'danger' if web_terminal_enabled else 'secondary' }}" type="submit">
-        {{ "Выключить веб-терминал" if web_terminal_enabled else "Включить веб-терминал" }}
-      </button>
+    <form class="panel" method="post" action="/ssl/threshold">
+      <div class="panel-head">
+        <h2>Порог уведомления</h2>
+        <span>дней</span>
+      </div>
+      <div class="form-grid">
+        <label class="wide">
+          За сколько дней предупреждать
+          <input type="number" min="1" max="365" name="ssl_alert_days" value="{{ ssl_threshold }}">
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="secondary" type="submit">Сохранить</button>
+      </div>
     </form>
-  </aside>
-
-  <aside class="panel">
-    <div class="panel-head">
-      <h2>Пароль</h2>
-      <span>admin</span>
-    </div>
-    <form method="post" action="/settings/password" class="stack-form">
-      <label>
-        Текущий пароль
-        <input type="password" name="current_password" autocomplete="current-password" required>
-      </label>
-      <label>
-        Новый пароль
-        <input type="password" name="new_password" autocomplete="new-password" required>
-      </label>
-      <label>
-        Повтор нового пароля
-        <input type="password" name="new_password_repeat" autocomplete="new-password" required>
-      </label>
-      <button class="secondary" type="submit">Сменить пароль</button>
-    </form>
-  </aside>
-
-</section>
-
-<section class="page-head" id="domain">
-  <div>
-    <p class="eyebrow">Caddy и HTTPS</p>
-    <h2>Домен</h2>
   </div>
-</section>
-{% if domain_saved %}
-<div class="notice success">Base URL сохранён для ссылок в Telegram. Caddy нужно обновить командой ниже.</div>
-{% endif %}
-<section class="settings-grid">
-  <form class="panel" method="post" action="/domain">
-    <div class="panel-head">
-      <h2>Свой домен</h2>
-      <span>{{ server_ip }}</span>
-    </div>
-    <p class="muted">Создайте DNS A-запись домена на IP сервера, затем сохраните домен здесь и выполните команду на сервере.</p>
-    <div class="form-grid">
-      <label class="wide">
-        Домен
-        <input name="domain" placeholder="billing.example.com">
-      </label>
-    </div>
-    <div class="form-actions">
-      <button class="primary" type="submit">Сохранить Base URL</button>
-    </div>
-  </form>
-
-  <aside class="panel">
-    <div class="panel-head">
-      <h2>Текущий адрес</h2>
-      <span>Base URL</span>
-    </div>
-    <p class="muted">{{ domain_base_url }}</p>
-    <p class="muted">Сейчас открыт хост: {{ current_host }}</p>
-  </aside>
-
-  <aside class="panel">
-    <div class="panel-head">
-      <h2>Команда</h2>
-      <span>root</span>
-    </div>
-    <p class="muted">После DNS A-записи замените домен в `.env` и перезапустите Caddy.</p>
-    <code class="code-block">cd /opt/server-billing<br>nano .env<br># BASE_URL=https://billing.example.com<br># CADDY_SITE_ADDRESS=billing.example.com<br>docker compose -f docker-compose.prod.yml up -d --force-recreate caddy scheduler</code>
-  </aside>
-</section>
-
-<section class="page-head" id="ssl">
-  <div>
-    <p class="eyebrow">Мониторинг</p>
-    <h2>SSL-сертификаты</h2>
-  </div>
-  <a class="secondary-link" href="/settings#ssl">Обновить</a>
-</section>
-{% if ssl_saved %}
-<div class="notice success">Настройки SSL сохранены.</div>
-{% endif %}
-<section class="panel">
-  <div class="panel-head">
-    <h2>Состояние сертификатов</h2>
-    <span>{{ ssl_results|length }}</span>
-  </div>
-  <p class="muted">
-    Проверяются домены серверов (поле «Домен для проверки SSL») и отдельный список ниже.
-    Уведомление в Telegram приходит, когда до конца сертификата остаётся {{ ssl_threshold }} дн. или меньше.
-  </p>
-  <div class="table-wrap">
-    <table class="server-table">
-      <thead>
-        <tr>
-          <th>Цель</th>
-          <th>Домен</th>
-          <th>Источник</th>
-          <th>Действует до</th>
-          <th>Осталось</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in ssl_results %}
-        <tr>
-          <td data-label="Цель"><strong>{{ item.label }}</strong></td>
-          <td data-label="Домен">{{ item.host }}:{{ item.port }}</td>
-          <td data-label="Источник">{{ "сервер" if item.source == "server" else "список" }}</td>
-          <td data-label="Действует до">{{ item.expiry or "—" }}</td>
-          <td data-label="Осталось">
-            {% if not item.ok %}
-              <span class="badge overdue">ошибка</span>
-            {% elif item.days_left < 0 %}
-              <span class="badge overdue">истёк</span>
-            {% elif item.days_left <= ssl_threshold %}
-              <span class="badge urgent">{{ item.days_left }} дн.</span>
-            {% elif item.days_left <= 14 %}
-              <span class="badge soon">{{ item.days_left }} дн.</span>
-            {% else %}
-              <span class="badge ok">{{ item.days_left }} дн.</span>
-            {% endif %}
-          </td>
-          <td class="actions" data-label="">
-            {% if item.source == "monitor" %}
-            <form method="post" action="/ssl/{{ item.monitor_id }}/delete" onsubmit="return confirm('Убрать домен из мониторинга?')">
-              <button class="link-button danger-text" type="submit">Удалить</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" class="empty">Нет целей для проверки. Добавьте домен ниже или укажите его в карточке сервера.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% for item in ssl_results if not item.ok and item.error %}
-  <p class="sync-status error">{{ item.host }}: {{ item.error }}</p>
-  {% endfor %}
-</section>
-
-<section class="settings-grid">
-  <form class="panel" method="post" action="/ssl/add">
-    <div class="panel-head">
-      <h2>Добавить домен</h2>
-      <span>отдельный список</span>
-    </div>
-    <div class="form-grid">
-      <label class="wide">
-        Домен
-        <input name="host" placeholder="example.com" required>
-      </label>
-      <label>
-        Порт
-        <input type="number" min="1" max="65535" name="port" value="443">
-      </label>
-      <label>
-        Метка
-        <input name="label" placeholder="Название (необязательно)">
-      </label>
-    </div>
-    <div class="form-actions">
-      <button class="primary" type="submit">Добавить</button>
-    </div>
-  </form>
-
-  <form class="panel" method="post" action="/ssl/threshold">
-    <div class="panel-head">
-      <h2>Порог уведомления</h2>
-      <span>дней</span>
-    </div>
-    <div class="form-grid">
-      <label>
-        За сколько дней предупреждать
-        <input type="number" min="1" max="365" name="ssl_alert_days" value="{{ ssl_threshold }}">
-      </label>
-    </div>
-    <div class="form-actions">
-      <button class="secondary" type="submit">Сохранить</button>
-    </div>
-  </form>
 </section>
 <script>
   const currencySelect = document.querySelector("#currency-base-select");

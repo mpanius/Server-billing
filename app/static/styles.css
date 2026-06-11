@@ -794,6 +794,82 @@ td strong {
   align-items: start;
 }
 
+.settings-section {
+  margin-top: 28px;
+}
+
+.settings-section:first-of-type {
+  margin-top: 0;
+}
+
+.settings-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 14px;
+}
+
+.settings-section-head h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.settings-row-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 18px;
+  align-items: start;
+}
+
+.settings-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.settings-row-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.settings-section .panel {
+  height: 100%;
+}
+
+.settings-section .panel form + form,
+.settings-section .panel .stack-form {
+  margin-top: 12px;
+}
+
+.settings-section .panel form button,
+.settings-section .panel .stack-form button {
+  width: 100%;
+}
+
+.settings-section .panel-sidebar form {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-section .panel-sidebar form + form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-section .panel-full {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+
+.settings-section > .notice {
+  margin-bottom: 14px;
+}
+
 .setup-wizard {
   margin-bottom: 18px;
 }
@@ -848,14 +924,6 @@ td strong {
 .setup-step input {
   min-width: min(360px, 100%);
   flex: 1;
-}
-
-.settings-grid .panel:first-child {
-  grid-row: span 3;
-}
-
-.settings-grid aside form + form {
-  margin-top: 10px;
 }
 
 .version-box {
@@ -964,6 +1032,9 @@ td strong {
 @media (max-width: 1100px) {
   .filter-bar form,
   .settings-grid,
+  .settings-row-2,
+  .settings-row-3,
+  .settings-row-auto,
   .provider-row,
   .provider-template {
     grid-template-columns: 1fr;
