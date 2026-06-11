@@ -57,10 +57,13 @@ def sync_provider_catalog() -> tuple[bool, str]:
     now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     bundle = {
         "updated_at": str(payload.get("updated_at") or now),
+        "prices_as_of": str(payload.get("prices_as_of") or payload.get("updated_at") or now[:10]),
         "notice": str(payload.get("notice", "")),
         "promos": list(payload.get("promos") or []),
         "providers": list(payload.get("providers") or []),
         "plans_by_domain": dict(payload.get("plans_by_domain") or {}),
+        "countries_by_domain": dict(payload.get("countries_by_domain") or {}),
+        "countries": dict(payload.get("countries") or {}),
     }
     with BUNDLE_CACHE.open("w", encoding="utf-8") as file:
         json.dump(bundle, file, ensure_ascii=False, indent=2)

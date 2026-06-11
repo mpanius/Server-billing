@@ -688,6 +688,16 @@ def calendar_ics() -> Response:
     )
 
 
+@app.post("/providers/sync")
+def sync_providers_catalog() -> RedirectResponse:
+    try:
+        ok, _message = sync_provider_catalog()
+        result = "1" if ok else "0"
+    except Exception:
+        result = "0"
+    return RedirectResponse(f"/providers?catalog={result}", status_code=303)
+
+
 @app.get("/providers", response_class=HTMLResponse)
 def providers_page(request: Request) -> HTMLResponse:
     providers = list_provider_templates()

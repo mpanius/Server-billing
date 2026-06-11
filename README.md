@@ -166,7 +166,13 @@ app/provider_catalog.json
 app/provider_bundle.example.json   — формат remote-обновления
 ```
 
-Remote-обновление: задайте `PROVIDER_CATALOG_URL` в `.env` (URL JSON-bundle, см. example). Scheduler подтягивает каталог раз в сутки; в **Настройках → Сервис** можно обновить вручную.
+Remote-обновление каталога **без пересборки сервера**:
+
+1. Опубликуйте JSON-bundle (см. `app/provider_bundle.example.json`) по HTTPS — GitHub Raw, CDN или свой сервер.
+2. В `.env` задайте `PROVIDER_CATALOG_URL=https://.../provider_bundle.json`
+3. Scheduler подтягивает каталог раз в сутки; кнопки «Обновить каталог» — в **Провайдеры** и **Настройки → Сервис**.
+
+Bundle может обновлять: `plans_by_domain`, `countries_by_domain`, `countries`, `promos`, `providers`, `prices_as_of`.
 
 У шаблона может быть поле `referral_url`. Если оно заполнено, кнопка «На сайт провайдера» ведёт по партнёрской ссылке. Иначе используется `website_url`.
 

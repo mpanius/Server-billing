@@ -1,19 +1,28 @@
 {
   "updated_at": "2026-06-11T12:00:00Z",
-  "notice": "Цены — ориентиры с сайтов провайдеров. Обновляется автоматически раз в сутки.",
-  "promos": [
-    {
-      "title": "Пример партнёра",
-      "text": "Здесь может быть промокод или акция.",
-      "promo_code": "PANEL10",
-      "referral_url": "https://example.com",
-      "sponsored": true
-    }
-  ],
+  "prices_as_of": "2026-06-11",
+  "notice": "Цены — ориентиры с сайтов провайдеров. Обновляется без пересборки Docker.",
+  "promos": [],
+  "countries": {
+    "RU": "Россия",
+    "NL": "Нидерланды",
+    "DE": "Германия"
+  },
+  "countries_by_domain": {
+    "hetzner.com": ["DE", "FI", "US", "SG"]
+  },
   "providers": [],
   "plans_by_domain": {
     "hetzner.com": [
-      {"name": "CX22", "price": 4.15, "currency": "EUR", "cpu": 2, "ram_gb": 4, "storage_gb": 40}
+      {
+        "name": "CX22",
+        "price": 4.15,
+        "currency": "EUR",
+        "cpu": 2,
+        "ram_gb": 4,
+        "storage_gb": 40,
+        "traffic_tb": 20
+      }
     ]
   }
 }

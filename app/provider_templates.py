@@ -5,65 +5,16 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.config import settings
+from app.countries import all_country_options, country_labels, country_label
 
 
 APP_DIR = Path(__file__).resolve().parent
 TEMPLATES_PATH = APP_DIR / "provider_templates.json"
 CATALOG_PATH = APP_DIR / "provider_catalog.json"
 PLANS_PATH = APP_DIR / "provider_plans.json"
+LOCATIONS_PATH = APP_DIR / "provider_locations.json"
 CACHE_DIR = Path(settings.database_path).resolve().parent / "catalog_cache"
 BUNDLE_CACHE = CACHE_DIR / "provider_bundle.json"
-
-COUNTRY_LABELS = {
-    "RU": {"name": "Россия", "flag": "🇷🇺"},
-    "NL": {"name": "Нидерланды", "flag": "🇳🇱"},
-    "DE": {"name": "Германия", "flag": "🇩🇪"},
-    "FI": {"name": "Финляндия", "flag": "🇫🇮"},
-    "FR": {"name": "Франция", "flag": "🇫🇷"},
-    "PL": {"name": "Польша", "flag": "🇵🇱"},
-    "GB": {"name": "Великобритания", "flag": "🇬🇧"},
-    "US": {"name": "США", "flag": "🇺🇸"},
-    "CA": {"name": "Канада", "flag": "🇨🇦"},
-    "SG": {"name": "Сингапур", "flag": "🇸🇬"},
-}
-
-COUNTRIES_BY_DOMAIN = {
-    "hetzner.com": ["DE", "FI", "US"],
-    "digitalocean.com": ["US", "NL", "DE", "GB", "SG"],
-    "vultr.com": ["US", "NL", "DE", "FR", "GB", "SG"],
-    "linode.com": ["US", "DE", "GB", "SG"],
-    "ovhcloud.com": ["FR", "DE", "PL", "GB", "CA", "US"],
-    "scaleway.com": ["FR", "NL", "PL"],
-    "contabo.com": ["DE", "US", "SG"],
-    "timeweb.cloud": ["RU", "NL", "PL"],
-    "selectel.ru": ["RU"],
-    "reg.ru": ["RU"],
-    "beget.com": ["RU"],
-    "firstvds.ru": ["RU", "NL"],
-    "vdsina.ru": ["RU"],
-    "aeza.net": ["RU", "NL", "DE", "US"],
-    "fornex.com": ["NL", "DE", "US"],
-    "onlinevds.ru": ["RU"],
-    "hostoff.net": ["RU", "NL"],
-    "rdp-onedash.ru": ["RU"],
-    "ruvds.com": ["RU", "NL"],
-    "adminvps.ru": ["RU"],
-    "zomro.com": ["NL", "DE", "PL"],
-    "serverspace.ru": ["RU"],
-    "mchost.ru": ["RU"],
-    "sprinthost.ru": ["RU"],
-    "eurohoster.org": ["NL", "DE", "PL"],
-    "ispserver.com": ["RU", "NL"],
-    "ionos.com": ["DE", "US", "GB"],
-    "hostinger.com": ["US", "NL", "DE", "GB", "SG"],
-    "aws.amazon.com": ["US", "DE", "GB", "SG"],
-    "cloud.google.com": ["US", "NL", "DE", "SG"],
-    "kamatera.com": ["US", "NL", "DE", "SG"],
-    "upcloud.com": ["FI", "DE", "US", "SG"],
-    "cherryservers.com": ["NL", "DE", "US"],
-    "leaseweb.com": ["NL", "DE", "US", "SG"],
-    "4vps.su": ["RU", "NL", "DE", "US", "FI", "FR"],
-}
 
 API_DOCS_BY_DOMAIN = {
     "hetzner.com": "https://docs.hetzner.cloud/",
@@ -95,6 +46,16 @@ def _bundle_payload() -> dict[str, object] | None:
 
 
 @lru_cache(maxsize=1)
+def load_countries_by_domain() -> dict[str, list[str]]:
+    bundle = _bundle_payload()
+    if bundle and isinstance(bundle.get("countries_by_domain"), dict):
+        return {str(key): list(value) for key, value in bundle["countries_by_domain"].items()}
+    payload = _load_json(LOCATIONS_PATH)
+    raw = payload.get("countries_by_domain") if isinstance(payload, dict) else {}
+    return {str(key): list(value) for key, value in raw.items()} if isinstance(raw, dict) else {}
+
+
+@lru_cache(maxsize=1)
 def load_plans_by_domain() -> dict[str, list[dict[str, object]]]:
     bundle = _bundle_payload()
     if bundle and bundle.get("plans_by_domain"):
@@ -109,6 +70,16 @@ def load_plans_by_domain() -> dict[str, list[dict[str, object]]]:
     return {}
 
 
+def plans_prices_as_of() -> str:
+    bundle = _bundle_payload()
+    if bundle and bundle.get("prices_as_of"):
+        return str(bundle["prices_as_of"])
+    payload = _load_json(PLANS_PATH)
+    if isinstance(payload, dict) and payload.get("prices_as_of"):
+        return str(payload["prices_as_of"])
+    return ""
+
+
 def _plan_price_value(plan: dict[str, object]) -> float | None:
     price = plan.get("price")
     if price is None:
@@ -119,13 +90,25 @@ def _plan_price_value(plan: dict[str, object]) -> float | None:
         return None
 
 
+def _plan_traffic_value(plan: dict[str, object]) -> float | None:
+    if plan.get("traffic_unlimited"):
+        return None
+    traffic = plan.get("traffic_tb")
+    if traffic is None:
+        return None
+    try:
+        return float(traffic)
+    except (TypeError, ValueError):
+        return None
+
+
 def _format_price_hint(plan: dict[str, object]) -> str:
     if plan.get("price_label"):
         return str(plan["price_label"])
     price = _plan_price_value(plan)
     currency = str(plan.get("currency") or "")
     if price is None:
-        return "тариф на сайте"
+        return "уточняйте на сайте"
     symbol = CURRENCY_SYMBOL.get(currency, currency)
     if currency == "RUB":
         return f"от ~{int(price)} {symbol}/мес"
@@ -145,23 +128,36 @@ def _summarize_plans(plans: list[dict[str, object]]) -> dict[str, object]:
     cheapest = min(priced, key=_plan_price_value) if priced else (plans[0] if plans else {})
     ram_values = [float(plan["ram_gb"]) for plan in plans if plan.get("ram_gb") is not None]
     cpu_values = [float(plan["cpu"]) for plan in plans if plan.get("cpu") is not None]
+    traffic_values = [_plan_traffic_value(plan) for plan in plans]
+    traffic_numbers = [value for value in traffic_values if value is not None]
+    has_unlimited_traffic = any(plan.get("traffic_unlimited") for plan in plans)
     currencies = sorted({str(plan.get("currency")) for plan in plans if plan.get("currency")})
+    max_price = max((_plan_price_value(plan) or 0) for plan in priced) if priced else None
     return {
         "min_price": _plan_price_value(cheapest) if cheapest else None,
+        "max_price": max_price,
         "min_price_currency": str(cheapest.get("currency") or ""),
-        "min_price_label": _format_price_hint(cheapest) if cheapest else "тариф на сайте",
+        "min_price_label": _format_price_hint(cheapest) if cheapest else "уточняйте на сайте",
         "min_ram_gb": min(ram_values) if ram_values else 0,
         "max_ram_gb": max(ram_values) if ram_values else 0,
         "min_cpu": min(cpu_values) if cpu_values else 0,
+        "max_cpu": max(cpu_values) if cpu_values else 0,
+        "min_traffic_tb": min(traffic_numbers) if traffic_numbers else 0,
+        "max_traffic_tb": max(traffic_numbers) if traffic_numbers else 0,
+        "has_unlimited_traffic": has_unlimited_traffic,
         "plan_currencies": currencies,
     }
 
 
-def _enrich_provider(provider: dict[str, object], plans_by_domain: dict[str, list[dict[str, object]]]) -> dict[str, object]:
+def _enrich_provider(
+    provider: dict[str, object],
+    plans_by_domain: dict[str, list[dict[str, object]]],
+    countries_by_domain: dict[str, list[str]],
+) -> dict[str, object]:
     domain = str(provider.get("domain", ""))
-    countries = COUNTRIES_BY_DOMAIN.get(domain, [])
+    countries = list(provider.get("countries") or countries_by_domain.get(domain, []))
     provider["countries"] = countries
-    provider["country_labels"] = [COUNTRY_LABELS[code] for code in countries if code in COUNTRY_LABELS]
+    provider["country_labels"] = country_labels(countries)
     provider["plans"] = _normalize_plans(provider, plans_by_domain)
     summary = _summarize_plans(provider["plans"])
     provider.update(summary)
@@ -191,21 +187,20 @@ def _load_raw_providers() -> list[dict[str, object]]:
 @lru_cache(maxsize=1)
 def list_provider_templates() -> list[dict[str, object]]:
     plans_by_domain = load_plans_by_domain()
-    enriched = [_enrich_provider(provider, plans_by_domain) for provider in _load_raw_providers()]
+    countries_by_domain = load_countries_by_domain()
+    enriched = [
+        _enrich_provider(provider, plans_by_domain, countries_by_domain)
+        for provider in _load_raw_providers()
+    ]
     return sorted(enriched, key=lambda item: str(item["name"]).lower())
 
 
 def provider_countries(providers: list[dict[str, object]] | None = None) -> list[dict[str, str]]:
     providers = providers or list_provider_templates()
     codes = sorted({code for provider in providers for code in provider.get("countries", [])})
-    return [
-        {"code": code, "name": COUNTRY_LABELS[code]["name"], "flag": COUNTRY_LABELS[code]["flag"]}
-        for code in codes
-        if code in COUNTRY_LABELS
-    ]
+    return [item for code in codes if (item := country_label(code))]
 
 
-@lru_cache(maxsize=1)
 def provider_catalog_meta() -> dict[str, object]:
     bundle = _bundle_payload()
     if bundle:
@@ -216,7 +211,9 @@ def provider_catalog_meta() -> dict[str, object]:
             "notice": str(bundle.get("notice") or ""),
             "promos": list(bundle.get("promos") or []),
             "updated_at": str(bundle.get("updated_at") or status.get("updated_at", "")),
+            "prices_as_of": str(bundle.get("prices_as_of") or plans_prices_as_of()),
             "source": status.get("source", "remote"),
+            "sync_enabled": bool((settings.provider_catalog_url or "").strip()),
         }
     payload = _load_json(CATALOG_PATH)
     if isinstance(payload, dict):
@@ -224,9 +221,18 @@ def provider_catalog_meta() -> dict[str, object]:
             "notice": str(payload.get("notice", "")),
             "promos": list(payload.get("promos") or []),
             "updated_at": "",
+            "prices_as_of": plans_prices_as_of(),
             "source": "bundled",
+            "sync_enabled": bool((settings.provider_catalog_url or "").strip()),
         }
-    return {"notice": "", "promos": [], "updated_at": "", "source": "bundled"}
+    return {
+        "notice": "",
+        "promos": [],
+        "updated_at": "",
+        "prices_as_of": plans_prices_as_of(),
+        "source": "bundled",
+        "sync_enabled": bool((settings.provider_catalog_url or "").strip()),
+    }
 
 
 def provider_template_by_domain(domain: str) -> dict[str, object] | None:
@@ -238,6 +244,9 @@ def provider_template_by_domain(domain: str) -> dict[str, object] | None:
 
 
 def clear_provider_catalog_cache() -> None:
+    from app.countries import clear_country_catalog_cache
+
     list_provider_templates.cache_clear()
-    provider_catalog_meta.cache_clear()
     load_plans_by_domain.cache_clear()
+    load_countries_by_domain.cache_clear()
+    clear_country_catalog_cache()

@@ -5,42 +5,83 @@
     <p class="eyebrow">Каталог хостеров</p>
     <h1>Провайдеры</h1>
     <p class="muted market-notice" id="market-notice">{{ catalog.notice }}</p>
-    {% if catalog.updated_at %}
-    <p class="muted market-updated">Каталог обновлён: {{ catalog.updated_at }}{% if catalog.source == "remote" %} · remote{% endif %}</p>
+    <p class="muted market-updated">
+      {% if catalog.prices_as_of %}Цены актуальны на: {{ catalog.prices_as_of }}.{% endif %}
+      {% if catalog.updated_at %} Каталог: {{ catalog.updated_at }}{% if catalog.source == "remote" %} · remote{% endif %}.{% endif %}
+    </p>
+  </div>
+  <div class="market-head-actions">
+    <span class="market-count">{{ providers|length }} в каталоге</span>
+    {% if catalog.sync_enabled %}
+    <form method="post" action="/providers/sync">
+      <button class="secondary" type="submit">Обновить каталог</button>
+    </form>
     {% endif %}
   </div>
-  <span class="market-count">{{ providers|length }} в каталоге</span>
 </section>
 
 <section class="panel market-promos-panel" id="market-promos"></section>
+{% if request.query_params.get("catalog") == "1" %}
+<div class="notice success">Каталог провайдеров обновлён.</div>
+{% elif request.query_params.get("catalog") == "0" %}
+<div class="notice">Не удалось обновить каталог. Проверьте PROVIDER_CATALOG_URL в .env.</div>
+{% endif %}
 
 <section class="panel market-panel">
   <div class="market-toolbar">
     <div class="market-countries-scroll" id="market-countries"></div>
-    <div class="market-controls">
-      <label class="market-search">
-        <span class="sr-only">Поиск провайдера</span>
-        <input type="search" id="market-search" placeholder="Поиск…" autocomplete="off">
+    <label class="market-search wide">
+      <span class="sr-only">Поиск провайдера</span>
+      <input type="search" id="market-search" placeholder="Поиск по названию или домену…" autocomplete="off">
+    </label>
+    <div class="market-filters-grid">
+      <label>
+        Цена от
+        <input type="number" id="market-filter-price-min" min="0" step="0.01" placeholder="0">
       </label>
-      <div class="market-filters">
-        <select id="market-filter-currency" aria-label="Валюта">
-          <option value="">Любая валюта</option>
+      <label>
+        Цена до
+        <input type="number" id="market-filter-price-max" min="0" step="0.01" placeholder="∞">
+      </label>
+      <label>
+        Валюта
+        <select id="market-filter-currency">
+          <option value="">Любая</option>
           <option value="RUB">RUB</option>
           <option value="USD">USD</option>
           <option value="EUR">EUR</option>
         </select>
-        <select id="market-filter-ram" aria-label="Минимум RAM">
-          <option value="">Любая RAM</option>
-          <option value="1">от 1 GB</option>
-          <option value="2">от 2 GB</option>
-          <option value="4">от 4 GB</option>
-          <option value="8">от 8 GB</option>
-        </select>
-        <label class="market-filter-check">
-          <input type="checkbox" id="market-filter-api">
-          С API docs
-        </label>
-        <button type="button" class="link-button" id="market-filter-reset">Сброс</button>
+      </label>
+      <label>
+        RAM от, GB
+        <input type="number" id="market-filter-ram-min" min="0" step="0.5" placeholder="0">
+      </label>
+      <label>
+        RAM до, GB
+        <input type="number" id="market-filter-ram-max" min="0" step="0.5" placeholder="∞">
+      </label>
+      <label>
+        CPU от
+        <input type="number" id="market-filter-cpu-min" min="0" step="1" placeholder="0">
+      </label>
+      <label>
+        CPU до
+        <input type="number" id="market-filter-cpu-max" min="0" step="1" placeholder="∞">
+      </label>
+      <label>
+        Трафик от, TB
+        <input type="number" id="market-filter-traffic-min" min="0" step="0.1" placeholder="0">
+      </label>
+      <label>
+        Трафик до, TB
+        <input type="number" id="market-filter-traffic-max" min="0" step="0.1" placeholder="∞">
+      </label>
+      <label class="market-filter-check">
+        <input type="checkbox" id="market-filter-api">
+        С API docs
+      </label>
+      <div class="market-filter-actions">
+        <button type="button" class="link-button" id="market-filter-reset">Сброс фильтров</button>
       </div>
     </div>
   </div>
@@ -65,6 +106,7 @@
       countries: {{ countries|tojson }},
       promos: {{ catalog.promos|tojson }},
       notice: {{ catalog.notice|tojson }},
+      pricesAsOf: {{ catalog.prices_as_of|tojson }},
     });
   });
 </script>
