@@ -99,7 +99,7 @@
         <button class="primary" type="submit">Сохранить белый список</button>
       </div>
     </form>
-    <p class="muted">За reverse proxy (Caddy, nginx) панель берёт IP из заголовков <code>X-Forwarded-For</code> / <code>X-Real-IP</code>. Можно задать начальный список через <code>PANEL_IP_ALLOWLIST</code> в .env.</p>
+    <p class="muted">За reverse proxy (Caddy, nginx) панель берёт IP из <code>X-Forwarded-For</code> / <code>X-Real-IP</code> только если запрос пришёл от доверенного прокси (localhost, Docker-сеть). Прямые запросы с подделанными заголовками игнорируются. Начальный список — <code>PANEL_IP_ALLOWLIST</code>, дополнительные прокси — <code>TRUSTED_PROXIES</code> в .env.</p>
   </aside>
 </section>
 

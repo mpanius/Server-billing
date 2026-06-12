@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     app_update_token: str = ""
     provider_catalog_url: str = ""
     panel_ip_allowlist: str = ""
+    trusted_proxies: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

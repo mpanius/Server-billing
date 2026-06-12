@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import ipaddress
 
 from fastapi import Request, WebSocket
@@ -14,33 +15,114 @@ LOCALHOST_NETWORKS = (
     ipaddress.ip_network("::1/128"),
 )
 
+DEFAULT_TRUSTED_PROXY_CIDRS = (
+    "127.0.0.0/8",
+    "::1/128",
+    "172.16.0.0/12",
+)
+
 
 def panel_ip_allowlist_text() -> str:
     return get_app_setting(ALLOWLIST_KEY, settings.panel_ip_allowlist or "").strip()
 
 
-def client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "").strip()
+def _parse_ip(addr: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    text = addr.strip()
+    if not text:
+        return None
+    try:
+        ip = ipaddress.ip_address(text)
+    except ValueError:
+        return None
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+        return ip.ipv4_mapped
+    return ip
+
+
+@functools.lru_cache(maxsize=1)
+def _trusted_proxy_rules() -> tuple[
+    tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...],
+    tuple[ipaddress.IPv4Address | ipaddress.IPv6Address, ...],
+]:
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    addresses: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
+    items = list(DEFAULT_TRUSTED_PROXY_CIDRS)
+    extra = settings.trusted_proxies.strip()
+    if extra:
+        items.extend(
+            item.strip()
+            for item in extra.replace(",", "\n").split("\n")
+            if item.strip()
+        )
+    for item in items:
+        try:
+            if "/" in item:
+                networks.append(ipaddress.ip_network(item, strict=False))
+            else:
+                parsed = _parse_ip(item)
+                if parsed is not None:
+                    addresses.append(parsed)
+        except ValueError:
+            continue
+    return tuple(networks), tuple(addresses)
+
+
+def _is_trusted_proxy(addr_text: str) -> bool:
+    ip = _parse_ip(addr_text)
+    if ip is None:
+        return False
+    networks, addresses = _trusted_proxy_rules()
+    if any(ip in network for network in networks):
+        return True
+    return any(ip == address for address in addresses)
+
+
+def _peer_ip(peer_host: str | None) -> str:
+    return peer_host.strip() if peer_host else ""
+
+
+def _header(headers, name: str) -> str:
+    return headers.get(name, "").strip()
+
+
+def client_ip_from_peer_and_headers(peer_host: str | None, headers) -> str:
+    peer = _peer_ip(peer_host)
+    if not peer:
+        return ""
+    if not _is_trusted_proxy(peer):
+        return peer
+
+    forwarded = _header(headers, "x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip()
-    real_ip = request.headers.get("x-real-ip", "").strip()
+        parts = [part.strip() for part in forwarded.split(",") if part.strip()]
+        for part in reversed(parts):
+            ip = _parse_ip(part)
+            if ip is None:
+                continue
+            if not _is_trusted_proxy(str(ip)):
+                return str(ip)
+        if parts:
+            ip = _parse_ip(parts[0])
+            if ip is not None:
+                return str(ip)
+
+    real_ip = _header(headers, "x-real-ip")
     if real_ip:
-        return real_ip
-    if request.client and request.client.host:
-        return request.client.host
-    return ""
+        ip = _parse_ip(real_ip)
+        if ip is not None:
+            return str(ip)
+
+    return peer
+
+
+def client_ip(request: Request) -> str:
+    peer = request.client.host if request.client else ""
+    return client_ip_from_peer_and_headers(peer, request.headers)
 
 
 def client_ip_from_websocket(websocket: WebSocket) -> str:
-    forwarded = websocket.headers.get("x-forwarded-for", "").strip()
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real_ip = websocket.headers.get("x-real-ip", "").strip()
-    if real_ip:
-        return real_ip
-    if websocket.client and websocket.client.host:
-        return websocket.client.host
-    return ""
+    peer = websocket.client.host if websocket.client else ""
+    return client_ip_from_peer_and_headers(peer, websocket.headers)
 
 
 def parse_allowlist(text: str) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network | ipaddress.IPv4Address | ipaddress.IPv6Address]:
