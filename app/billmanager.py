@@ -28,6 +28,19 @@ KNOWN_BILLMANAGER_HOSTS = {
     "onlinevds": "https://my.onlinevds.ru/billmgr",
     "ln-tech.ru": "https://lk.ln-tech.ru/billmgr",
     "ln-tech": "https://lk.ln-tech.ru/billmgr",
+    "firstvds.ru": "https://my.firstvds.ru/billmgr",
+    "firstvds": "https://my.firstvds.ru/billmgr",
+    "ispserver.ru": "https://my.ispserver.ru/billmgr",
+    "ispserver.com": "https://my.ispserver.ru/billmgr",
+    "ispserver": "https://my.ispserver.ru/billmgr",
+    "ihor-hosting.ru": "https://billing.ihor-hosting.ru/billmgr",
+    "ihor-hosting": "https://billing.ihor-hosting.ru/billmgr",
+    "hostinux.com": "https://my.hostinux.com/billmgr",
+    "hostinux": "https://my.hostinux.com/billmgr",
+    "hosting.energy": "https://my.hosting.energy/manager/billmgr",
+    "eurobyte.ru": "https://bill.eurobyte.ru/manager/billmgr",
+    "eurobyte": "https://bill.eurobyte.ru/manager/billmgr",
+    "the.hosting": "https://client.the.hosting/billmgr",
 }
 
 # Функции списка услуг по типам продуктов. Работают и в BM5, и в BM6.
@@ -116,6 +129,13 @@ def billmanager_presets(templates: list[dict[str, object]] | None = None) -> lis
         ("QWINS", "qwins.co", "https://my.qwins.co/billmgr"),
         ("OnlineVDS", "onlinevds.ru", "https://my.onlinevds.ru/billmgr"),
         ("LN-Tech", "ln-tech.ru", "https://lk.ln-tech.ru/billmgr"),
+        ("FirstVDS", "firstvds.ru", "https://my.firstvds.ru/billmgr"),
+        ("ISPserver", "ispserver.ru", "https://my.ispserver.ru/billmgr"),
+        ("iHor Hosting", "ihor-hosting.ru", "https://billing.ihor-hosting.ru/billmgr"),
+        ("Hostinux", "hostinux.com", "https://my.hostinux.com/billmgr"),
+        ("Hosting.Energy", "hosting.energy", "https://my.hosting.energy/manager/billmgr"),
+        ("Eurobyte", "eurobyte.ru", "https://bill.eurobyte.ru/manager/billmgr"),
+        ("THE.Hosting", "the.hosting", "https://client.the.hosting/billmgr"),
     ):
         add(label, domain, url)
 
