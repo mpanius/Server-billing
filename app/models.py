@@ -28,6 +28,7 @@ class HostingAccount:
     last_sync_at: str = ""
     last_sync_status: str = ""
     last_sync_message: str = ""
+    integration_settings: str = "{}"
 
     @property
     def integration_label(self) -> str:
@@ -148,6 +149,7 @@ def account_from_row(row: Row) -> HostingAccount:
         last_sync_at=str(row_value(row, "last_sync_at", "") or ""),
         last_sync_status=str(row_value(row, "last_sync_status", "") or ""),
         last_sync_message=str(row_value(row, "last_sync_message", "") or ""),
+        integration_settings=str(row_value(row, "integration_settings", "{}") or "{}"),
     )
 
 

@@ -59,6 +59,7 @@ from app.telegram import (
     telegram_bot_username,
 )
 from app.integrations import INTEGRATION_OPTIONS, SUPPORTED_INTEGRATIONS
+from app.onedash import build_onedash_integration_settings, onedash_addon_defaults
 from app.version import current_version
 
 app = FastAPI(title=settings.app_name)
@@ -228,10 +229,24 @@ def account_payload(
     integration_type: str = "manual",
     integration_url: str = "",
     auto_sync_enabled: bool = False,
+    *,
+    onedash_static_ip: bool = True,
+    onedash_backup: bool = True,
+    onedash_nvme: bool = False,
+    onedash_processor: str = "intel",
+    integration_settings: str = "{}",
 ) -> dict[str, object]:
     normalized_integration = integration_type.strip().lower() or "manual"
     if normalized_integration not in SUPPORTED_INTEGRATIONS:
         normalized_integration = "manual"
+    settings_json = integration_settings or "{}"
+    if normalized_integration == "onedash":
+        settings_json = build_onedash_integration_settings(
+            static_ip=onedash_static_ip,
+            backup=onedash_backup,
+            nvme=onedash_nvme,
+            processor=onedash_processor,
+        )
     return {
         "name": name.strip(),
         "provider": provider.strip(),
@@ -243,6 +258,7 @@ def account_payload(
         "integration_type": normalized_integration,
         "integration_url": integration_url.strip(),
         "auto_sync_enabled": bool(auto_sync_enabled) and normalized_integration != "manual",
+        "integration_settings": settings_json,
     }
 
 
@@ -495,6 +511,10 @@ def add_account(
     integration_type: str = Form("manual"),
     integration_url: str = Form(""),
     auto_sync_enabled: bool = Form(False),
+    onedash_static_ip: bool = Form(False),
+    onedash_backup: bool = Form(False),
+    onedash_nvme: bool = Form(False),
+    onedash_processor: str = Form("intel"),
 ) -> RedirectResponse:
     create_account(
         account_payload(
@@ -508,6 +528,10 @@ def add_account(
             integration_type,
             integration_url,
             auto_sync_enabled,
+            onedash_static_ip=onedash_static_ip or integration_type.strip().lower() == "onedash",
+            onedash_backup=onedash_backup or integration_type.strip().lower() == "onedash",
+            onedash_nvme=onedash_nvme,
+            onedash_processor=onedash_processor,
         )
     )
     return RedirectResponse("/accounts", status_code=303)
@@ -525,6 +549,7 @@ def edit_account(request: Request, account_id: int) -> HTMLResponse:
             "account": account,
             "provider_templates": list_provider_templates(),
             "integration_options": INTEGRATION_OPTIONS,
+            "onedash_settings": onedash_addon_defaults(account.integration_settings),
             "donation_url": DONATION_URL,
         },
     )
@@ -543,7 +568,12 @@ def save_account(
     integration_type: str = Form("manual"),
     integration_url: str = Form(""),
     auto_sync_enabled: bool = Form(False),
+    onedash_static_ip: bool = Form(False),
+    onedash_backup: bool = Form(False),
+    onedash_nvme: bool = Form(False),
+    onedash_processor: str = Form("intel"),
 ) -> RedirectResponse:
+    existing = get_account(account_id)
     payload = account_payload(
         name,
         provider,
@@ -555,6 +585,11 @@ def save_account(
         integration_type,
         integration_url,
         auto_sync_enabled,
+        onedash_static_ip=onedash_static_ip,
+        onedash_backup=onedash_backup,
+        onedash_nvme=onedash_nvme,
+        onedash_processor=onedash_processor,
+        integration_settings=existing.integration_settings if existing else "{}",
     )
     if not auth_secret.strip():
         existing = get_account(account_id)

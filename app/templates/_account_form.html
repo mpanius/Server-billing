@@ -48,6 +48,31 @@
     <input type="checkbox" id="account-auto-sync" name="auto_sync_enabled" value="on" {% if account and account.auto_sync_enabled %}checked{% endif %}>
     Автосинхронизация услуг и дат оплаты
   </label>
+  <div class="integration-field wide" id="onedash-addon-fields">
+    {% set od = onedash_settings if onedash_settings is defined else {'static_ip': true, 'backup': true, 'nvme': false, 'processor': 'intel'} %}
+    <p class="muted">Web API OneDash не передаёт доп. опции заказа. Отметьте их здесь — суммы продления будут считаться как в кабинете хостера.</p>
+    <div class="checkbox-row">
+      <label class="checkbox-label">
+        <input type="checkbox" name="onedash_static_ip" value="on" {% if od.static_ip %}checked{% endif %}>
+        Выделенный IP (+65 ₽/мес)
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" name="onedash_backup" value="on" {% if od.backup %}checked{% endif %}>
+        Бэкап (+69 ₽/мес)
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" name="onedash_nvme" value="on" {% if od.nvme %}checked{% endif %}>
+        NVMe (+79 ₽/мес)
+      </label>
+    </div>
+    <label>
+      Процессор
+      <select name="onedash_processor">
+        <option value="intel" {% if od.processor != 'amd' %}selected{% endif %}>Intel</option>
+        <option value="amd" {% if od.processor == 'amd' %}selected{% endif %}>AMD (×2 к тарифу)</option>
+      </select>
+    </label>
+  </div>
   <p class="integration-field muted wide" id="account-integration-hint"></p>
 </div>
 <script>
@@ -63,6 +88,7 @@
     const secretInput = document.querySelector("#account-auth-secret");
     const urlLabel = document.querySelector("#account-integration-url-label");
     const urlField = document.querySelector("#account-integration-url-field");
+    const onedashAddonFields = document.querySelector("#onedash-addon-fields");
 
     const setValue = (selector, value, overwrite = false) => {
       const field = document.querySelector(selector);
@@ -95,6 +121,9 @@
       if (urlField) urlField.style.display = type === "onedash" ? "none" : show ? "" : "none";
       if (urlLabel) {
         urlLabel.textContent = type === "billmanager" ? "URL биллинга (BILLmanager)" : "URL API / биллинга";
+      }
+      if (onedashAddonFields) {
+        onedashAddonFields.style.display = type === "onedash" ? "" : "none";
       }
     };
 

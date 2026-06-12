@@ -146,6 +146,7 @@ def init_db() -> None:
         ensure_column(connection, "hosting_accounts", "last_sync_at", "TEXT DEFAULT ''")
         ensure_column(connection, "hosting_accounts", "last_sync_status", "TEXT DEFAULT ''")
         ensure_column(connection, "hosting_accounts", "last_sync_message", "TEXT DEFAULT ''")
+        ensure_column(connection, "hosting_accounts", "integration_settings", "TEXT DEFAULT '{}'")
         ensure_column(connection, "servers", "sync_locked", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(connection, "servers", "external_synced_at", "TEXT DEFAULT ''")
         ensure_column(connection, "servers", "ssl_host", "TEXT DEFAULT ''")

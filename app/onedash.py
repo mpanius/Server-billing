@@ -48,6 +48,12 @@ LOCATION_TARIFF_KEYS = {
 }
 STANDARD_PERIODS = (7, 10, 14, 30, 60, 90, 180, 360, 720, 999)
 DEFAULT_RENT_PERIOD = 30
+DEFAULT_ONEDASH_ADDONS = {
+    "static_ip": True,
+    "backup": True,
+    "nvme": False,
+    "processor": "intel",
+}
 DEFAULT_AMD_FACTORS = {
     "msk": 2.0,
     "ams": 2.10553,
@@ -123,7 +129,12 @@ class OneDashConnector:
         if not isinstance(balance.get("data"), dict):
             logger.info("OneDash balance response without data block.")
 
-    def list_services(self, *, known_periods: dict[str, int] | None = None) -> list[RemoteService]:
+    def list_services(
+        self,
+        *,
+        known_periods: dict[str, int] | None = None,
+        addon_defaults: dict[str, object] | None = None,
+    ) -> list[RemoteService]:
         api_tariffs = _load_tariffs(self._request("tariffs"))
         public_tariffs, site_pricing = _load_public_site_catalog()
         tariffs = _merge_tariff_catalogs(api_tariffs, public_tariffs)
@@ -151,7 +162,9 @@ class OneDashConnector:
                     order = _normalize_onedash_order(order)
             else:
                 order = _normalize_onedash_order(order)
-            services.extend(_services_from_order(order, tariffs, period_hints, site_pricing))
+            services.extend(
+                _services_from_order(order, tariffs, period_hints, site_pricing, addon_defaults)
+            )
         return services
 
 
@@ -540,6 +553,68 @@ def _parse_options_blob(raw: object) -> dict[str, object]:
     return {}
 
 
+def onedash_addon_defaults(integration_settings: str = "") -> dict[str, object]:
+    """Web API OneDash не отдаёт dop_options — берём профиль из настроек аккаунта."""
+    try:
+        payload = json.loads(integration_settings or "{}")
+    except json.JSONDecodeError:
+        payload = {}
+    onedash = payload.get("onedash") if isinstance(payload.get("onedash"), dict) else {}
+    return {
+        "static_ip": bool(onedash.get("static_ip", DEFAULT_ONEDASH_ADDONS["static_ip"])),
+        "backup": bool(onedash.get("backup", DEFAULT_ONEDASH_ADDONS["backup"])),
+        "nvme": bool(onedash.get("nvme", DEFAULT_ONEDASH_ADDONS["nvme"])),
+        "processor": str(onedash.get("processor") or DEFAULT_ONEDASH_ADDONS["processor"]),
+    }
+
+
+def build_onedash_integration_settings(
+    *,
+    static_ip: bool = True,
+    backup: bool = True,
+    nvme: bool = False,
+    processor: str = "intel",
+) -> str:
+    processor_name = processor.strip().lower() or "intel"
+    if processor_name not in {"intel", "amd"}:
+        processor_name = "intel"
+    return json.dumps(
+        {
+            "onedash": {
+                "static_ip": bool(static_ip),
+                "backup": bool(backup),
+                "nvme": bool(nvme),
+                "processor": processor_name,
+            }
+        },
+        ensure_ascii=False,
+    )
+
+
+def _resolved_addon_options(
+    order: dict[str, object],
+    addon_defaults: dict[str, object] | None,
+) -> dict[str, object]:
+    options = _order_addon_options(order)
+    has_api_options = any(_option_enabled(options, name) for name in ("static_ip", "nvme", "backup"))
+    if has_api_options:
+        return options
+    defaults = addon_defaults or {}
+    return {
+        "static_ip": bool(defaults.get("static_ip")),
+        "nvme": bool(defaults.get("nvme")),
+        "backup": bool(defaults.get("backup")),
+    }
+
+
+def _resolved_processor(order: dict[str, object], addon_defaults: dict[str, object] | None) -> str:
+    processor = str(order.get("processor") or "").strip().lower()
+    if processor:
+        return processor
+    defaults = addon_defaults or {}
+    return str(defaults.get("processor") or "intel").strip().lower()
+
+
 def _normalize_onedash_order(order: dict[str, object]) -> dict[str, object]:
     normalized = dict(order)
     if not normalized.get("tariff_id"):
@@ -633,8 +708,9 @@ def _apply_processor_price(
     order: dict[str, object],
     location: str,
     site_pricing: SitePricing | None,
+    addon_defaults: dict[str, object] | None = None,
 ) -> float:
-    processor = str(order.get("processor") or "intel").strip().lower()
+    processor = _resolved_processor(order, addon_defaults)
     if processor not in {"amd", "amd_epyc"}:
         return base
     pricing = site_pricing or SitePricing()
@@ -659,10 +735,11 @@ def _extra_charges(
     period: int,
     currency: str,
     site_pricing: SitePricing | None = None,
+    addon_defaults: dict[str, object] | None = None,
 ) -> float:
     mult = _addon_multiplier(period)
     pricing = site_pricing or SitePricing()
-    options = _order_addon_options(order)
+    options = _resolved_addon_options(order, addon_defaults)
 
     total = 0.0
     if _option_enabled(options, "static_ip"):
@@ -763,6 +840,7 @@ def _renewal_amount(
     *,
     fallback_period: int | None = None,
     site_pricing: SitePricing | None = None,
+    addon_defaults: dict[str, object] | None = None,
 ) -> tuple[float | None, int, str]:
     period = _resolve_order_period(order, fallback_period)
     direct_amount, direct_period, direct_currency = _order_amount_from_payload(order)
@@ -796,14 +874,9 @@ def _renewal_amount(
         return None, period, currency
 
     period = matched_period
-    base = _apply_processor_price(base, order, location, site_pricing)
+    base = _apply_processor_price(base, order, location, site_pricing, addon_defaults)
     order_count = max(1, int(order.get("order_count") or 1))
-    total = (base + _extra_charges(order, period, currency, site_pricing)) * order_count
-    if not _order_addon_options(order) and _localized_amount(order.get("dop_amount"), currency) <= 0:
-        logger.debug(
-            "OneDash order %s: в ответе API нет dop_options/dop_amount — сумма только по тарифу.",
-            order.get("order_id"),
-        )
+    total = (base + _extra_charges(order, period, currency, site_pricing, addon_defaults)) * order_count
     return round(total, 1), period, currency
 
 
@@ -851,6 +924,7 @@ def _services_from_order(
     tariffs: dict[int, dict[str, object]],
     known_periods: dict[str, int] | None = None,
     site_pricing: SitePricing | None = None,
+    addon_defaults: dict[str, object] | None = None,
 ) -> list[RemoteService]:
     period_hints = known_periods or {}
     order_id = str(order.get("order_id") or "").strip()
@@ -877,6 +951,7 @@ def _services_from_order(
                 location,
                 fallback_period=order_fallback,
                 site_pricing=site_pricing,
+                addon_defaults=addon_defaults,
             )
             return [
                 RemoteService(
@@ -911,6 +986,7 @@ def _services_from_order(
             location,
             fallback_period=fallback_period,
             site_pricing=site_pricing,
+            addon_defaults=addon_defaults,
         )
         services.append(
             RemoteService(

@@ -52,8 +52,8 @@ def create_account(data: dict[str, object]) -> int:
             """
             INSERT INTO hosting_accounts (
                 name, provider, login, auth_secret, panel_url, payment_url, notes,
-                integration_type, integration_url, auto_sync_enabled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                integration_type, integration_url, auto_sync_enabled, integration_settings
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["name"],
@@ -66,6 +66,7 @@ def create_account(data: dict[str, object]) -> int:
                 data.get("integration_type", "manual") or "manual",
                 data.get("integration_url", ""),
                 1 if data.get("auto_sync_enabled") else 0,
+                data.get("integration_settings", "{}"),
             ),
         )
         return int(cursor.lastrowid)
@@ -78,7 +79,8 @@ def update_account(account_id: int, data: dict[str, object]) -> None:
             UPDATE hosting_accounts
             SET name = ?, provider = ?, login = ?, auth_secret = ?,
                 panel_url = ?, payment_url = ?, notes = ?,
-                integration_type = ?, integration_url = ?, auto_sync_enabled = ?
+                integration_type = ?, integration_url = ?, auto_sync_enabled = ?,
+                integration_settings = ?
             WHERE id = ?
             """,
             (
@@ -92,6 +94,7 @@ def update_account(account_id: int, data: dict[str, object]) -> None:
                 data.get("integration_type", "manual") or "manual",
                 data.get("integration_url", ""),
                 1 if data.get("auto_sync_enabled") else 0,
+                data.get("integration_settings", "{}"),
                 account_id,
             ),
         )

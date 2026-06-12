@@ -18,7 +18,7 @@ from datetime import date, timedelta
 
 from app.connectors import ConnectorError, RemoteService, build_connector
 from app.models import HostingAccount, Server
-from app.onedash import CABINET_URL
+from app.onedash import CABINET_URL, onedash_addon_defaults
 from app.repository import (
     create_server,
     get_account,
@@ -185,7 +185,10 @@ def sync_account(account_id: int, *, create_missing: bool = True) -> SyncResult:
 
     try:
         if account.integration_type == "onedash":
-            remote_services = connector.list_services(known_periods=known_periods)
+            remote_services = connector.list_services(
+                known_periods=known_periods,
+                addon_defaults=onedash_addon_defaults(account.integration_settings),
+            )
         else:
             remote_services = connector.list_services()
     except ConnectorError as error:
@@ -227,6 +230,21 @@ def sync_account(account_id: int, *, create_missing: bool = True) -> SyncResult:
         f"Создано: {result.created}, обновлено: {result.updated}, "
         f"пропущено (заблокировано): {result.skipped}, пропало: {len(result.missing)}."
     )
+    if account.integration_type == "onedash" and remote_services:
+        defaults = onedash_addon_defaults(account.integration_settings)
+        extras = []
+        if defaults.get("static_ip"):
+            extras.append("IP")
+        if defaults.get("backup"):
+            extras.append("бэкап")
+        if defaults.get("nvme"):
+            extras.append("NVMe")
+        if str(defaults.get("processor") or "intel").lower() == "amd":
+            extras.append("AMD")
+        if extras:
+            result.message += f" Доп. опции в расчёте: {', '.join(extras)}."
+        else:
+            result.message += " Доп. опции не заданы — суммы только по тарифу."
     set_account_sync_result(account_id, "ok", result.message)
     return result
 
