@@ -68,4 +68,11 @@ def build_connector(account: HostingAccount) -> ProviderConnector | None:
             api_key=account.auth_secret,
             api_base=account.integration_url or "",
         )
+    if account.integration_type == "aeza":
+        from app.aeza import AezaConnector
+
+        return AezaConnector(
+            api_key=account.auth_secret,
+            api_base=account.integration_url or "",
+        )
     return None

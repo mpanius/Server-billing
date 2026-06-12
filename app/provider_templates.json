@@ -150,13 +150,16 @@
     "name": "Aeza",
     "domain": "aeza.net",
     "website_url": "https://aeza.net/",
+    "api_docs_url": "https://github.com/BlxssdCoder/AezaAPI",
+    "integration_type": "aeza",
+    "integration_url": "https://core.aeza.net/api",
     "panel_url": "https://my.aeza.net/",
     "payment_url": "https://my.aeza.net/",
     "default_currency": "EUR",
     "billing_period_days": 30,
     "telegram_access": true,
     "service_hint": "Личный кабинет: услуги -> виртуальные или выделенные серверы.",
-    "notes": "Современный hosting provider. Если доступ или поддержка идут через Telegram, сохрани контакт в заметках."
+    "notes": "VPS/VDS и dedicated. API-ключ: my.aeza.net → Настройки → API-ключи."
   },
   {
     "name": "Fornex",

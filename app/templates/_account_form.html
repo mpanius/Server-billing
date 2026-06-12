@@ -15,7 +15,7 @@
       {% endfor %}
       <option value="__custom__">Другой / ручной ввод…</option>
     </select>
-    <small class="muted">BILLmanager — логин и пароль кабинета; OneDash — API-ключ в поле секрета.</small>
+    <small class="muted">BILLmanager — логин и пароль кабинета; OneDash / Aeza — API-ключ в поле секрета.</small>
   </label>
   <label class="wide">
     Шаблон провайдера
@@ -264,20 +264,28 @@
       });
       if (integrationHint) integrationHint.textContent = hintFor(type);
 
-      if (loginField) loginField.style.display = type === "onedash" ? "none" : "";
+      if (loginField) loginField.style.display = type === "onedash" || type === "aeza" ? "none" : "";
       if (secretLabel) {
         secretLabel.textContent =
-          type === "onedash" ? "Api-Key OneDash" : type === "billmanager" ? "Пароль от кабинета" : "Пароль / секрет";
+          type === "onedash"
+            ? "Api-Key OneDash"
+            : type === "aeza"
+              ? "API-ключ Aeza"
+              : type === "billmanager"
+                ? "Пароль от кабинета"
+                : "Пароль / секрет";
       }
       if (secretInput) {
         secretInput.placeholder =
           type === "onedash"
             ? "Api-Key из личного кабинета"
-            : type === "billmanager"
-              ? "пароль от личного кабинета хостера"
-              : "пароль, API-ключ или заметка";
+            : type === "aeza"
+              ? "API-ключ из my.aeza.net → Настройки → API-ключи"
+              : type === "billmanager"
+                ? "пароль от личного кабинета хостера"
+                : "пароль, API-ключ или заметка";
       }
-      if (urlField) urlField.style.display = type === "onedash" ? "none" : show ? "" : "none";
+      if (urlField) urlField.style.display = type === "onedash" || type === "aeza" ? "none" : show ? "" : "none";
       if (urlLabel) {
         urlLabel.textContent = type === "billmanager" ? "URL биллинга (BILLmanager)" : "URL API / биллинга";
       }

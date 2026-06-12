@@ -201,12 +201,13 @@ def integration_host_options(templates: list[dict[str, object]] | None = None) -
         )
 
     for item in templates or []:
-        if str(item.get("integration_type") or "") != "onedash":
+        integration = str(item.get("integration_type") or "manual")
+        if integration in ("manual", "billmanager"):
             continue
         add_option(
-            str(item.get("name") or "OneDash"),
+            str(item.get("name") or integration),
             str(item.get("domain") or ""),
-            "onedash",
+            integration,
             str(item.get("integration_url") or ""),
             str(item.get("panel_url") or ""),
             str(item.get("payment_url") or ""),

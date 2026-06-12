@@ -18,6 +18,11 @@ INTEGRATION_OPTIONS: list[dict[str, str]] = [
         "label": "OneDash API",
         "hint": "Api-Key из личного кабинета OneDash. Подтягивает заказы, IP и даты окончания.",
     },
+    {
+        "id": "aeza",
+        "label": "Aeza API",
+        "hint": "API-ключ из my.aeza.net → Настройки → API-ключи. Подтягивает VPS, IP, суммы и даты продления.",
+    },
 ]
 
 INTEGRATION_LABELS = {item["id"]: item["label"] for item in INTEGRATION_OPTIONS}

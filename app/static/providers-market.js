@@ -198,6 +198,8 @@
         badges.push('<span class="market-badge">BILLmanager</span>');
       } else if (provider.integration_type === "onedash") {
         badges.push('<span class="market-badge">OneDash API</span>');
+      } else if (provider.integration_type === "aeza") {
+        badges.push('<span class="market-badge">Aeza API</span>');
       }
       if (provider.sponsored) badges.push('<span class="market-badge market-badge-partner">Партнёр</span>');
       return badges.join("");

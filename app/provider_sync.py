@@ -129,7 +129,7 @@ def _diff_fields(
             f"{server.name}: период {server.billing_period_days} -> {service.billing_period_days} дн."
         )
     elif (
-        account.integration_type == "billmanager"
+        account.integration_type in ("billmanager", "aeza")
         and service.billing_period_days
         and server.billing_period_days != service.billing_period_days
     ):
