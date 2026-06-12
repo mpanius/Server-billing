@@ -41,7 +41,33 @@ KNOWN_BILLMANAGER_HOSTS = {
     "eurobyte.ru": "https://bill.eurobyte.ru/manager/billmgr",
     "eurobyte": "https://bill.eurobyte.ru/manager/billmgr",
     "the.hosting": "https://client.the.hosting/billmgr",
+    "itldc.com": "https://my.itldc.com/billmgr",
+    "itldc": "https://my.itldc.com/billmgr",
+    "zomro.com": "https://cp.zomro.com/billmgr",
+    "zomro": "https://cp.zomro.com/billmgr",
+    "cp.zomro.com": "https://cp.zomro.com/billmgr",
+    "vps.one": "https://bill.vps1.net/billmgr",
+    "vps1.net": "https://bill.vps1.net/billmgr",
+    "bill.vps1.net": "https://bill.vps1.net/billmgr",
+    "host.kg": "https://my.host.kg/manager/billmgr",
 }
+
+BILLMANAGER_BUILTIN_PRESETS: tuple[tuple[str, str, str], ...] = (
+    ("QWINS", "qwins.co", "https://my.qwins.co/billmgr"),
+    ("OnlineVDS", "onlinevds.ru", "https://my.onlinevds.ru/billmgr"),
+    ("LN-Tech", "ln-tech.ru", "https://lk.ln-tech.ru/billmgr"),
+    ("FirstVDS", "firstvds.ru", "https://my.firstvds.ru/billmgr"),
+    ("ISPserver", "ispserver.ru", "https://my.ispserver.ru/billmgr"),
+    ("iHor Hosting", "ihor-hosting.ru", "https://billing.ihor-hosting.ru/billmgr"),
+    ("Hostinux", "hostinux.com", "https://my.hostinux.com/billmgr"),
+    ("Hosting.Energy", "hosting.energy", "https://my.hosting.energy/manager/billmgr"),
+    ("Eurobyte", "eurobyte.ru", "https://bill.eurobyte.ru/manager/billmgr"),
+    ("THE.Hosting", "the.hosting", "https://client.the.hosting/billmgr"),
+    ("ITLDC", "itldc.com", "https://my.itldc.com/billmgr"),
+    ("Zomro", "zomro.com", "https://cp.zomro.com/billmgr"),
+    ("VPS.one", "vps.one", "https://bill.vps1.net/billmgr"),
+    ("Host.kg", "host.kg", "https://my.host.kg/manager/billmgr"),
+)
 
 # Функции списка услуг по типам продуктов. Работают и в BM5, и в BM6.
 SERVICE_FUNCTIONS = ("vds", "dedic", "vhost")
@@ -125,18 +151,7 @@ def billmanager_presets(templates: list[dict[str, object]] | None = None) -> lis
             str(item.get("payment_url") or ""),
         )
 
-    for label, domain, url in (
-        ("QWINS", "qwins.co", "https://my.qwins.co/billmgr"),
-        ("OnlineVDS", "onlinevds.ru", "https://my.onlinevds.ru/billmgr"),
-        ("LN-Tech", "ln-tech.ru", "https://lk.ln-tech.ru/billmgr"),
-        ("FirstVDS", "firstvds.ru", "https://my.firstvds.ru/billmgr"),
-        ("ISPserver", "ispserver.ru", "https://my.ispserver.ru/billmgr"),
-        ("iHor Hosting", "ihor-hosting.ru", "https://billing.ihor-hosting.ru/billmgr"),
-        ("Hostinux", "hostinux.com", "https://my.hostinux.com/billmgr"),
-        ("Hosting.Energy", "hosting.energy", "https://my.hosting.energy/manager/billmgr"),
-        ("Eurobyte", "eurobyte.ru", "https://bill.eurobyte.ru/manager/billmgr"),
-        ("THE.Hosting", "the.hosting", "https://client.the.hosting/billmgr"),
-    ):
+    for label, domain, url in BILLMANAGER_BUILTIN_PRESETS:
         add(label, domain, url)
 
     presets.sort(key=lambda item: item["name"].lower())

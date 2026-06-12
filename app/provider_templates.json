@@ -296,6 +296,48 @@
     "notes": "BILLmanager API. Международный провайдер с RU-интерфейсом."
   },
   {
+    "name": "ITLDC",
+    "domain": "itldc.com",
+    "website_url": "https://itldc.com/",
+    "panel_url": "https://my.itldc.com/billmgr?func=logon",
+    "payment_url": "https://my.itldc.com/billmgr?func=logon",
+    "integration_type": "billmanager",
+    "integration_url": "https://my.itldc.com/billmgr",
+    "api_docs_url": "https://www.ispsystem.com/docs/b6c/developer-section/working-with-api/guide-to-ispsystem-software-api",
+    "default_currency": "EUR",
+    "billing_period_days": 30,
+    "service_hint": "Client area: Goods/Services -> Virtual servers.",
+    "notes": "BILLmanager API. VPS и dedicated, 15+ дата-центров (EU, US, Asia)."
+  },
+  {
+    "name": "VPS.one",
+    "domain": "vps.one",
+    "website_url": "https://vps.one/",
+    "panel_url": "https://bill.vps1.net/billmgr?func=logon",
+    "payment_url": "https://bill.vps1.net/billmgr?func=logon",
+    "integration_type": "billmanager",
+    "integration_url": "https://bill.vps1.net/billmgr",
+    "api_docs_url": "https://www.ispsystem.com/docs/b6c/developer-section/working-with-api/guide-to-ispsystem-software-api",
+    "default_currency": "EUR",
+    "billing_period_days": 30,
+    "service_hint": "Billing: Products/Services -> Virtual Private Servers.",
+    "notes": "BILLmanager + VMmanager. Биллинг на bill.vps1.net. Оплата по дням/месяцам."
+  },
+  {
+    "name": "Host.kg",
+    "domain": "host.kg",
+    "website_url": "https://host.kg/",
+    "panel_url": "https://my.host.kg/manager/billmgr?func=logon",
+    "payment_url": "https://my.host.kg/manager/billmgr?func=logon",
+    "integration_type": "billmanager",
+    "integration_url": "https://my.host.kg/manager/billmgr",
+    "api_docs_url": "https://www.ispsystem.com/docs/b6c/developer-section/working-with-api/guide-to-ispsystem-software-api",
+    "default_currency": "USD",
+    "billing_period_days": 30,
+    "service_hint": "Client area: услуги -> виртуальные серверы.",
+    "notes": "BILLmanager API. VPS и хостинг в Киргизии / СНГ."
+  },
+  {
     "name": "Hostoff",
     "domain": "hostoff.net",
     "website_url": "https://hostoff.net/",
@@ -346,12 +388,15 @@
     "name": "Zomro",
     "domain": "zomro.com",
     "website_url": "https://zomro.com/",
-    "panel_url": "https://my.zomro.com/",
-    "payment_url": "https://my.zomro.com/billing",
+    "panel_url": "https://cp.zomro.com/billmgr?func=logon",
+    "payment_url": "https://cp.zomro.com/billmgr?func=logon",
+    "integration_type": "billmanager",
+    "integration_url": "https://cp.zomro.com/billmgr",
+    "api_docs_url": "https://www.ispsystem.com/docs/b6c/developer-section/working-with-api/guide-to-ispsystem-software-api",
     "default_currency": "EUR",
     "billing_period_days": 30,
-    "service_hint": "Billing: Products/Services -> нужный сервер.",
-    "notes": "VPS и dedicated. Локации NL, DE, PL и другие."
+    "service_hint": "Billing: Services -> Virtual servers.",
+    "notes": "BILLmanager 6. VPS и dedicated, локации NL, DE, PL, US и др."
   },
   {
     "name": "ServerSpace",
