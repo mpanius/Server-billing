@@ -6,8 +6,10 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import urllib.error
 import urllib.request
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from app.connectors import ConnectorError, RemoteService
@@ -46,6 +48,22 @@ LOCATION_TARIFF_KEYS = {
 }
 STANDARD_PERIODS = (7, 10, 14, 30, 60, 90, 180, 360, 720, 999)
 DEFAULT_RENT_PERIOD = 30
+DEFAULT_AMD_FACTORS = {
+    "msk": 2.0,
+    "ams": 2.10553,
+    "nyc": 2.0,
+    "fra": 2.0,
+    "hel": 2.0,
+    "lon": 2.0,
+}
+
+
+@dataclass(frozen=True)
+class SitePricing:
+    static_ip: float = 65.0
+    nvme: float = 79.0
+    backup: float = 69.0
+    amd_factors: dict[str, float] = field(default_factory=lambda: dict(DEFAULT_AMD_FACTORS))
 _PERIOD_SKIP_KEYS = frozenset(
     {
         "days_remaining",
@@ -107,7 +125,8 @@ class OneDashConnector:
 
     def list_services(self, *, known_periods: dict[str, int] | None = None) -> list[RemoteService]:
         api_tariffs = _load_tariffs(self._request("tariffs"))
-        tariffs = _merge_tariff_catalogs(api_tariffs, _load_public_tariffs())
+        public_tariffs, site_pricing = _load_public_site_catalog()
+        tariffs = _merge_tariff_catalogs(api_tariffs, public_tariffs)
         payload = self._request("all-orders")
         orders = payload.get("data")
         if not isinstance(orders, list):
@@ -127,7 +146,7 @@ class OneDashConnector:
                         order = {**order, **data}
                 except ConnectorError:
                     logger.debug("OneDash order-info failed for order %s", order_id)
-            services.extend(_services_from_order(order, tariffs, period_hints))
+            services.extend(_services_from_order(order, tariffs, period_hints, site_pricing))
         return services
 
 
@@ -180,23 +199,68 @@ def _extract_json_array(text: str, start: int) -> list[object] | None:
     return None
 
 
-def _load_public_tariffs(timeout: int = 20) -> dict[int, dict[str, object]]:
-    """Публичная витрина содержит new_prices_hel/fra, которых нет в web-api/tariffs."""
+def _fetch_public_site_html(timeout: int = 20) -> str:
     request = urllib.request.Request(PUBLIC_SITE_URL, headers={"User-Agent": "server-billing-manager/1.0"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            html = response.read().decode("utf-8", errors="ignore")
+            return response.read().decode("utf-8", errors="ignore")
     except (urllib.error.URLError, TimeoutError) as error:
-        logger.warning("OneDash public tariffs fetch failed: %s", error)
-        return {}
+        logger.warning("OneDash public site fetch failed: %s", error)
+        return ""
+
+
+def _parse_js_number(html: str, var_name: str) -> float | None:
+    match = re.search(rf"var\s+{re.escape(var_name)}\s*=\s*([\d.]+)", html)
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+def _parse_amd_factors(html: str) -> dict[str, float]:
+    match = re.search(r"window\.amdFactor\s*=\s*(\{[^}]+\})", html)
+    if not match:
+        return dict(DEFAULT_AMD_FACTORS)
+    try:
+        parsed = json.loads(match.group(1).replace("'", '"'))
+    except json.JSONDecodeError:
+        return dict(DEFAULT_AMD_FACTORS)
+    if not isinstance(parsed, dict):
+        return dict(DEFAULT_AMD_FACTORS)
+    factors: dict[str, float] = dict(DEFAULT_AMD_FACTORS)
+    for key, value in parsed.items():
+        try:
+            factors[str(key).strip().lower()] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return factors
+
+
+def _load_site_pricing(html: str) -> SitePricing:
+    return SitePricing(
+        static_ip=_parse_js_number(html, "staticIpPrice") or 65.0,
+        nvme=_parse_js_number(html, "nvmePrice") or 79.0,
+        backup=_parse_js_number(html, "backupPrice") or 69.0,
+        amd_factors=_parse_amd_factors(html),
+    )
+
+
+def _load_public_site_catalog(timeout: int = 20) -> tuple[dict[int, dict[str, object]], SitePricing]:
+    """Публичная витрина: тарифы HEL/FRA и цены доп. опций с главной страницы."""
+    html = _fetch_public_site_html(timeout)
+    pricing = _load_site_pricing(html)
+    if not html:
+        return {}, pricing
 
     marker = "var allTariffs = "
     index = html.find(marker)
     if index < 0:
-        return {}
+        return {}, pricing
     rows = _extract_json_array(html, index + len(marker))
     if not isinstance(rows, list):
-        return {}
+        return {}, pricing
 
     tariffs: dict[int, dict[str, object]] = {}
     for row in rows:
@@ -207,7 +271,7 @@ def _load_public_tariffs(timeout: int = 20) -> dict[int, dict[str, object]]:
         except (TypeError, ValueError):
             continue
         tariffs[tariff_id] = row
-    return tariffs
+    return tariffs, pricing
 
 
 def _merge_tariff_catalogs(
@@ -456,6 +520,83 @@ def _localized_amount(raw: object, currency: str = "RUB") -> float:
     return _parse_amount(raw) or 0.0
 
 
+def _parse_options_blob(raw: object) -> dict[str, object]:
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return {}
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _order_addon_options(order: dict[str, object]) -> dict[str, object]:
+    for key in ("dop_options", "additional_options", "options"):
+        parsed = _parse_options_blob(order.get(key))
+        if parsed:
+            return parsed
+    scanned = _scan_addon_options(order)
+    if scanned:
+        return scanned
+    merged: dict[str, object] = {}
+    for option in ("static_ip", "nvme", "backup"):
+        if option in order:
+            merged[option] = order[option]
+    return merged
+
+
+def _scan_addon_options(raw: object, *, depth: int = 0) -> dict[str, object]:
+    if depth > 4 or not isinstance(raw, dict):
+        return {}
+    found: dict[str, object] = {}
+    for option in ("static_ip", "nvme", "backup"):
+        if option in raw:
+            found[option] = raw[option]
+    if found and any(_option_enabled(found, option) for option in found):
+        return found
+    for value in raw.values():
+        if isinstance(value, dict):
+            nested = _scan_addon_options(value, depth=depth + 1)
+            if nested:
+                return nested
+    return {}
+
+
+def _option_enabled(options: dict[str, object], name: str) -> bool:
+    value = options.get(name)
+    if value is None:
+        for key, candidate in options.items():
+            if str(key).lower().replace("-", "_") == name:
+                value = candidate
+                break
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value > 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return False
+
+
+def _processor_multiplier(
+    order: dict[str, object],
+    location: str,
+    site_pricing: SitePricing | None,
+) -> float:
+    processor = str(order.get("processor") or "intel").strip().lower()
+    if processor not in {"amd", "amd_epyc"}:
+        return 1.0
+    pricing = site_pricing or SitePricing()
+    key = _normalize_location(location)
+    factor = pricing.amd_factors.get(key)
+    return factor if factor and factor > 0 else 1.0
+
+
 def _addon_multiplier(period: int) -> float:
     if period == 999:
         return 1.0
@@ -464,11 +605,30 @@ def _addon_multiplier(period: int) -> float:
     return 1.0
 
 
-def _extra_charges(order: dict[str, object], period: int, currency: str) -> float:
+def _extra_charges(
+    order: dict[str, object],
+    period: int,
+    currency: str,
+    site_pricing: SitePricing | None = None,
+) -> float:
+    mult = _addon_multiplier(period)
+    pricing = site_pricing or SitePricing()
+    options = _order_addon_options(order)
+
+    catalog_addons = 0.0
+    if _option_enabled(options, "static_ip"):
+        catalog_addons += pricing.static_ip
+    if _option_enabled(options, "nvme"):
+        catalog_addons += pricing.nvme
+    if _option_enabled(options, "backup"):
+        catalog_addons += pricing.backup
+    if catalog_addons > 0:
+        return catalog_addons * mult
+
     extra = _localized_amount(order.get("dop_amount"), currency)
-    if extra <= 0:
-        return 0.0
-    return extra * _addon_multiplier(period)
+    if extra > 0:
+        return extra * mult
+    return 0.0
 
 
 def _scan_order_amount(raw: object, *, depth: int = 0) -> float | None:
@@ -569,6 +729,7 @@ def _renewal_amount(
     location: str,
     *,
     fallback_period: int | None = None,
+    site_pricing: SitePricing | None = None,
 ) -> tuple[float | None, int, str]:
     period = _resolve_order_period(order, fallback_period)
     direct_amount, direct_period, direct_currency = _order_amount_from_payload(order)
@@ -602,8 +763,9 @@ def _renewal_amount(
         return None, period, currency
 
     period = matched_period
+    base *= _processor_multiplier(order, location, site_pricing)
     order_count = max(1, int(order.get("order_count") or 1))
-    total = (base + _extra_charges(order, period, currency)) * order_count
+    total = (base + _extra_charges(order, period, currency, site_pricing)) * order_count
     return total, period, currency
 
 
@@ -650,6 +812,7 @@ def _services_from_order(
     order: dict[str, object],
     tariffs: dict[int, dict[str, object]],
     known_periods: dict[str, int] | None = None,
+    site_pricing: SitePricing | None = None,
 ) -> list[RemoteService]:
     period_hints = known_periods or {}
     order_id = str(order.get("order_id") or "").strip()
@@ -675,6 +838,7 @@ def _services_from_order(
                 tariff_id,
                 location,
                 fallback_period=order_fallback,
+                site_pricing=site_pricing,
             )
             return [
                 RemoteService(
@@ -708,6 +872,7 @@ def _services_from_order(
             tariff_id,
             location,
             fallback_period=fallback_period,
+            site_pricing=site_pricing,
         )
         services.append(
             RemoteService(
