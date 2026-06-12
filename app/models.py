@@ -38,6 +38,24 @@ class HostingAccount:
     def is_synced(self) -> bool:
         return self.integration_type != "manual"
 
+    @property
+    def effective_panel_url(self) -> str:
+        panel = (self.panel_url or "").strip()
+        if panel:
+            return panel
+        if self.integration_type == "billmanager":
+            from app.billmanager import billmanager_cabinet_url
+
+            return billmanager_cabinet_url(self.integration_url, self.panel_url, self.provider)
+        return ""
+
+    @property
+    def effective_payment_url(self) -> str:
+        payment = (self.payment_url or "").strip()
+        if payment:
+            return payment
+        return self.effective_panel_url
+
 
 @dataclass(frozen=True)
 class PaymentHistoryItem:

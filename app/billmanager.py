@@ -70,6 +70,56 @@ def normalize_billmgr_url(raw: str) -> str:
     return urlunparse((scheme, parsed.netloc, path, "", "", ""))
 
 
+def billmanager_presets(templates: list[dict[str, object]] | None = None) -> list[dict[str, str]]:
+    """Известные URL BILLmanager для выпадающих списков в форме аккаунта."""
+    seen: set[str] = set()
+    presets: list[dict[str, str]] = []
+
+    def add(
+        name: str,
+        domain: str,
+        integration_url: str,
+        panel_url: str = "",
+        payment_url: str = "",
+    ) -> None:
+        url = normalize_billmgr_url(integration_url)
+        if not url or url in seen:
+            return
+        seen.add(url)
+        cabinet = (panel_url or "").strip() or f"{url}?func=logon"
+        pay = (payment_url or "").strip() or cabinet
+        presets.append(
+            {
+                "name": name.strip() or domain.strip() or url,
+                "domain": domain.strip(),
+                "integration_url": url,
+                "panel_url": cabinet,
+                "payment_url": pay,
+            }
+        )
+
+    for item in templates or []:
+        if str(item.get("integration_type") or "") != "billmanager":
+            continue
+        add(
+            str(item.get("name") or ""),
+            str(item.get("domain") or ""),
+            str(item.get("integration_url") or ""),
+            str(item.get("panel_url") or ""),
+            str(item.get("payment_url") or ""),
+        )
+
+    for label, url in (
+        ("QWINS", "https://my.qwins.co/billmgr"),
+        ("OnlineVDS", "https://my.onlinevds.ru/billmgr"),
+        ("LN-Tech", "https://lk.ln-tech.ru/billmgr"),
+    ):
+        add(label, label.lower().replace(" ", ""), url)
+
+    presets.sort(key=lambda item: item["name"].lower())
+    return presets
+
+
 def resolve_billmanager_url(integration_url: str, panel_url: str, provider: str = "") -> str:
     for candidate in (integration_url, panel_url):
         normalized = normalize_billmgr_url(candidate)
@@ -82,6 +132,14 @@ def resolve_billmanager_url(integration_url: str, panel_url: str, provider: str 
         if key in hint:
             return url
     return ""
+
+
+def billmanager_cabinet_url(integration_url: str, panel_url: str, provider: str = "") -> str:
+    panel = (panel_url or "").strip()
+    if panel:
+        return panel
+    billmgr = resolve_billmanager_url(integration_url, panel_url, provider)
+    return f"{billmgr}?func=logon" if billmgr else ""
 
 
 class BillmanagerConnector:
@@ -99,6 +157,7 @@ class BillmanagerConnector:
         self.login = (login or "").strip()
         self.password = password or ""
         self.timeout = timeout
+        self._session_id: str | None = None
         if not self.base_url:
             raise ConnectorError(
                 "Не указан URL BILLmanager. Для QWINS: https://my.qwins.co/billmgr"
@@ -144,13 +203,68 @@ class BillmanagerConnector:
             raise ConnectorError("BILLmanager вернул неожиданный ответ (не XML).") from error
         error_node = root.find("error")
         if error_node is not None:
-            message = (error_node.findtext("msg") or error_node.get("type") or "ошибка").strip()
-            raise ConnectorError(f"BILLmanager: {message}")
+            error_type = (error_node.get("type") or "").strip()
+            obj = (error_node.get("object") or "").strip()
+            message = (error_node.findtext("msg") or error_type or "ошибка").strip()
+            detail = " ".join(part for part in (error_type, obj, message) if part)
+            raise ConnectorError(f"BILLmanager: {detail}")
         return root
 
-    def _request(self, func: str, extra: dict[str, str] | None = None) -> ET.Element:
+    def _auth_params(self) -> dict[str, str]:
+        if self._session_id:
+            return {"auth": self._session_id}
+        return {"authinfo": f"{self.login}:{self.password}"}
+
+    def _establish_session(self) -> None:
+        if self._session_id:
+            return
         params = {
-            "authinfo": f"{self.login}:{self.password}",
+            "func": "auth",
+            "username": self.login,
+            "password": self.password,
+            "out": "xml",
+        }
+        last_error: ConnectorError | None = None
+        for method in ("POST", "GET"):
+            try:
+                root = self._parse_xml(self._fetch_raw(params, method))
+                auth = root.find("auth")
+                session = ""
+                if auth is not None:
+                    session = (auth.text or auth.get("id") or "").strip()
+                if not session:
+                    raise ConnectorError("BILLmanager: пустой ответ сессии API.")
+                self._session_id = session
+                return
+            except ConnectorError as error:
+                last_error = error
+        if last_error is not None:
+            raise last_error
+        raise ConnectorError("BILLmanager: не удалось авторизоваться через сессию.")
+
+    @staticmethod
+    def _should_use_session(error: ConnectorError) -> bool:
+        text = str(error).lower()
+        return any(
+            phrase in text
+            for phrase in (
+                "forbidden_auth",
+                "authorization error",
+                "insufficient privileges",
+                "badpassword",
+                "invalid username or password",
+            )
+        )
+
+    def _request(
+        self,
+        func: str,
+        extra: dict[str, str] | None = None,
+        *,
+        _session_retry: bool = False,
+    ) -> ET.Element:
+        params = {
+            **self._auth_params(),
             "func": func,
             "out": "xml",
         }
@@ -162,14 +276,30 @@ class BillmanagerConnector:
                 return self._parse_xml(self._fetch_raw(params, method))
             except ConnectorError as error:
                 last_error = error
-        if last_error is not None:
-            raise last_error
-        raise ConnectorError("BILLmanager: ошибка запроса.")
+        if last_error is None:
+            raise ConnectorError("BILLmanager: ошибка запроса.")
+        if not _session_retry and not self._session_id and self._should_use_session(last_error):
+            self._establish_session()
+            return self._request(func, extra, _session_retry=True)
+        raise last_error
 
     @staticmethod
     def _is_auth_error(error: ConnectorError) -> bool:
         text = str(error).lower()
-        return any(word in text for word in ("auth", "access", "доступ", "логин", "парол", "forbidden"))
+        return any(
+            word in text
+            for word in (
+                "auth",
+                "access",
+                "доступ",
+                "логин",
+                "парол",
+                "forbidden",
+                "privileges",
+                "permission",
+                "badpassword",
+            )
+        )
 
     def test_connection(self) -> None:
         last_error: ConnectorError | None = None
@@ -179,7 +309,9 @@ class BillmanagerConnector:
                 return
             except ConnectorError as error:
                 if self._is_auth_error(error):
-                    raise
+                    raise ConnectorError(
+                        "BILLmanager: неверный логин или пароль, либо API недоступен с этого сервера."
+                    ) from error
                 last_error = error
         if last_error is not None:
             raise last_error
@@ -189,12 +321,21 @@ class BillmanagerConnector:
         seen: set[str] = set()
         any_success = False
         for func in SERVICE_FUNCTIONS:
-            try:
-                root = self._request(func, {"filter": "on"})
-            except ConnectorError as error:
-                if self._is_auth_error(error):
-                    raise
-                logger.info("BILLmanager func=%s недоступна: %s", func, error)
+            root = None
+            for extra in ({"filter": "on"}, None):
+                try:
+                    root = self._request(func, extra)
+                    break
+                except ConnectorError as error:
+                    if self._is_auth_error(error):
+                        raise ConnectorError(
+                            "BILLmanager: неверный логин или пароль, либо API недоступен с этого сервера."
+                        ) from error
+                    if extra is not None:
+                        logger.info("BILLmanager func=%s filter=on недоступна: %s", func, error)
+                        continue
+                    logger.info("BILLmanager func=%s недоступна: %s", func, error)
+            if root is None:
                 continue
             any_success = True
             for elem in root.findall("elem"):
@@ -204,7 +345,10 @@ class BillmanagerConnector:
                 seen.add(service.service_id)
                 services.append(service)
         if not any_success:
-            raise ConnectorError("BILLmanager не отдал ни одного списка услуг (vds/dedic/vhost).")
+            raise ConnectorError(
+                "BILLmanager не отдал ни одного списка услуг (vds/dedic/vhost). "
+                "Проверьте логин/пароль от кабинета и доступ API у хостера."
+            )
         return services
 
 

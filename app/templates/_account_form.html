@@ -20,9 +20,16 @@
     <input type="password" id="account-auth-secret" name="auth_secret" value="" autocomplete="new-password" placeholder="{{ 'сохранён, оставьте пустым чтобы не менять' if account and account.auth_secret else 'пароль, API-ключ или заметка' }}">
     {% if account and account.auth_secret %}<small class="muted">Секрет сохранён и скрыт. Введите новый, чтобы изменить.</small>{% endif %}
   </label>
-  <label class="wide">
-    Ссылка на личный кабинет
-    <input id="account-panel-url" name="panel_url" value="{{ account.panel_url if account else '' }}" placeholder="https://...">
+  <label class="wide" id="account-panel-field">
+    <span>Ссылка на личный кабинет</span>
+    <select id="billmanager-panel-preset" class="billmanager-preset-select" hidden>
+      <option value="">— выберите хостера —</option>
+      {% for preset in billmanager_presets|default([]) %}
+      <option value="{{ preset.panel_url }}" data-billing="{{ preset.integration_url }}" data-payment="{{ preset.payment_url }}">{{ preset.name }}</option>
+      {% endfor %}
+      <option value="__custom__">Другой URL…</option>
+    </select>
+    <input id="account-panel-url" name="panel_url" value="{{ account.panel_url if account else '' }}" placeholder="https://my.qwins.co/billmgr?func=logon">
   </label>
   <label class="wide">
     Ссылка на оплату по умолчанию
@@ -42,6 +49,13 @@
   </label>
   <label class="integration-field" id="account-integration-url-field">
     <span id="account-integration-url-label">URL API / биллинга</span>
+    <select id="billmanager-billing-preset" class="billmanager-preset-select" hidden>
+      <option value="">— выберите хостера —</option>
+      {% for preset in billmanager_presets|default([]) %}
+      <option value="{{ preset.integration_url }}" data-panel="{{ preset.panel_url }}" data-payment="{{ preset.payment_url }}">{{ preset.name }}</option>
+      {% endfor %}
+      <option value="__custom__">Другой URL…</option>
+    </select>
     <input id="account-integration-url" name="integration_url" value="{{ account.integration_url if account else '' }}" placeholder="https://my.qwins.co/billmgr">
   </label>
   <label class="integration-field checkbox-label">
@@ -89,6 +103,11 @@
     const urlLabel = document.querySelector("#account-integration-url-label");
     const urlField = document.querySelector("#account-integration-url-field");
     const onedashAddonFields = document.querySelector("#onedash-addon-fields");
+    const panelField = document.querySelector("#account-panel-field");
+    const billingPreset = document.querySelector("#billmanager-billing-preset");
+    const panelPreset = document.querySelector("#billmanager-panel-preset");
+    const billingInput = document.querySelector("#account-integration-url");
+    const panelInput = document.querySelector("#account-panel-url");
 
     const setValue = (selector, value, overwrite = false) => {
       const field = document.querySelector(selector);
@@ -101,9 +120,64 @@
       return item?.hint || "";
     };
 
+    const toggleBillmanagerPresetUi = (enabled) => {
+      [billingPreset, panelPreset].forEach((select) => {
+        if (!select) return;
+        select.hidden = !enabled;
+      });
+    };
+
+    const showCustomInput = (input, show) => {
+      if (!input) return;
+      input.style.display = show ? "" : "none";
+    };
+
+    const matchPresetSelect = (select, value) => {
+      if (!select) return false;
+      const normalized = (value || "").trim();
+      if (!normalized) {
+        select.value = "";
+        return false;
+      }
+      for (const option of select.options) {
+        if (option.value && option.value !== "__custom__" && option.value === normalized) {
+          select.value = option.value;
+          return true;
+        }
+      }
+      select.value = "__custom__";
+      return false;
+    };
+
+    const syncPresetSelectsFromInputs = () => {
+      const billingMatched = matchPresetSelect(billingPreset, billingInput?.value);
+      const panelMatched = matchPresetSelect(panelPreset, panelInput?.value);
+      if (integrationType?.value === "billmanager") {
+        showCustomInput(billingInput, !billingMatched && billingPreset?.value === "__custom__");
+        showCustomInput(panelInput, !panelMatched && panelPreset?.value === "__custom__");
+      }
+    };
+
+    const applyPresetOption = (option, source) => {
+      if (!option || option.value === "__custom__") return;
+      if (source === "billing") {
+        setValue("#account-integration-url", option.value, true);
+        if (option.dataset.panel) setValue("#account-panel-url", option.dataset.panel, true);
+      } else if (source === "panel") {
+        setValue("#account-panel-url", option.value, true);
+        if (option.dataset.billing) setValue("#account-integration-url", option.dataset.billing, true);
+      }
+      if (option.dataset.payment) setValue("#account-payment-url", option.dataset.payment, true);
+      matchPresetSelect(billingPreset, billingInput?.value);
+      matchPresetSelect(panelPreset, panelInput?.value);
+      showCustomInput(billingInput, false);
+      showCustomInput(panelInput, false);
+    };
+
     const applyIntegrationUi = () => {
       const type = integrationType?.value || "manual";
       const show = type !== "manual";
+      const isBillmanager = type === "billmanager";
       integrationFields.forEach((field) => {
         field.style.display = show ? "" : "none";
       });
@@ -129,7 +203,34 @@
       if (onedashAddonFields) {
         onedashAddonFields.style.display = type === "onedash" ? "" : "none";
       }
+      toggleBillmanagerPresetUi(isBillmanager);
+      if (isBillmanager) {
+        syncPresetSelectsFromInputs();
+      } else {
+        showCustomInput(billingInput, true);
+        showCustomInput(panelInput, true);
+      }
     };
+
+    billingPreset?.addEventListener("change", () => {
+      const option = billingPreset.selectedOptions[0];
+      if (billingPreset.value === "__custom__") {
+        showCustomInput(billingInput, true);
+        billingInput?.focus();
+        return;
+      }
+      applyPresetOption(option, "billing");
+    });
+
+    panelPreset?.addEventListener("change", () => {
+      const option = panelPreset.selectedOptions[0];
+      if (panelPreset.value === "__custom__") {
+        showCustomInput(panelInput, true);
+        panelInput?.focus();
+        return;
+      }
+      applyPresetOption(option, "panel");
+    });
 
     const bootPicker = () => {
       if (!templatePicker || !window.initTemplatePicker) return;
@@ -146,6 +247,7 @@
           integrationType.value = item.integration_type;
           applyIntegrationUi();
         }
+        syncPresetSelectsFromInputs();
       });
     };
 

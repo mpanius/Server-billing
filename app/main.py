@@ -60,7 +60,7 @@ from app.telegram import (
     telegram_bot_username,
 )
 from app.integrations import INTEGRATION_OPTIONS, SUPPORTED_INTEGRATIONS
-from app.billmanager import resolve_billmanager_url
+from app.billmanager import billmanager_presets, resolve_billmanager_url
 from app.onedash import build_onedash_integration_settings, onedash_addon_defaults
 from app.version import current_version
 
@@ -408,6 +408,7 @@ def edit_server(request: Request, server_id: int) -> HTMLResponse:
             "accounts": accounts,
             "account_options": account_form_options(accounts),
             "provider_templates": list_provider_templates(),
+            "billmanager_presets": billmanager_presets(list_provider_templates()),
             "integration_options": INTEGRATION_OPTIONS,
             "donation_url": DONATION_URL,
             "web_terminal_enabled": web_terminal_enabled(),
@@ -505,6 +506,7 @@ def accounts_page(request: Request) -> HTMLResponse:
             "request": request,
             "accounts": list_accounts(),
             "provider_templates": list_provider_templates(),
+            "billmanager_presets": billmanager_presets(list_provider_templates()),
             "integration_options": INTEGRATION_OPTIONS,
             "donation_url": DONATION_URL,
             "synced": request.query_params.get("synced", ""),
@@ -562,6 +564,7 @@ def edit_account(request: Request, account_id: int) -> HTMLResponse:
             "request": request,
             "account": account,
             "provider_templates": list_provider_templates(),
+            "billmanager_presets": billmanager_presets(list_provider_templates()),
             "integration_options": INTEGRATION_OPTIONS,
             "onedash_settings": onedash_addon_defaults(account.integration_settings),
             "donation_url": DONATION_URL,

@@ -47,11 +47,13 @@
       <p class="sync-status {{ 'error' if account.last_sync_status == 'error' else 'ok' }}">{{ account.last_sync_message }}</p>
       {% endif %}
       <div class="account-actions">
-        {% if account.panel_url %}
-        <a class="secondary-link" href="{{ account.panel_url }}" target="_blank" rel="noreferrer">Кабинет</a>
+        {% if account.effective_panel_url %}
+        <a class="secondary-link" href="{{ account.effective_panel_url }}" target="_blank" rel="noreferrer">Кабинет</a>
         {% endif %}
-        {% if account.payment_url %}
-        <a class="secondary-link" href="{{ account.payment_url }}" target="_blank" rel="noreferrer">Оплата</a>
+        {% if account.effective_payment_url and account.effective_payment_url != account.effective_panel_url %}
+        <a class="secondary-link" href="{{ account.effective_payment_url }}" target="_blank" rel="noreferrer">Оплата</a>
+        {% elif account.effective_payment_url and not account.effective_panel_url %}
+        <a class="secondary-link" href="{{ account.effective_payment_url }}" target="_blank" rel="noreferrer">Оплата</a>
         {% endif %}
         {% if account.is_synced %}
         <form method="post" action="/accounts/{{ account.id }}/sync" class="inline-form">
