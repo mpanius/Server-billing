@@ -18,8 +18,18 @@
     Название
     <input name="name" value="{{ server.name if server else '' }}" required placeholder="RDP Moscow 01">
   </label>
-  <label>
-    Провайдер
+  <label id="server-provider-field">
+    <span>Провайдер</span>
+    <select id="server-provider-preset" class="host-preset-select">
+      <option value="">— выберите провайдера —</option>
+      {% for host in integration_host_options|default([]) %}
+      <option value="{{ host.domain }}">{{ host.name }} · {{ host.domain }}</option>
+      {% endfor %}
+      {% for account in accounts|default([]) %}
+      <option value="{{ account.provider }}">{{ account.name }} · {{ account.provider }}</option>
+      {% endfor %}
+      <option value="__custom__">Другой…</option>
+    </select>
     <input id="server-provider" name="provider" value="{{ server.provider if server else '' }}" required placeholder="onlinevds.ru">
   </label>
   <label>
@@ -101,6 +111,8 @@
     const accounts = {{ account_options|default([])|tojson }};
     const templatePicker = document.querySelector("[data-template-picker]");
     const accountSelect = document.querySelector("#server-hosting-account");
+    const providerPreset = document.querySelector("#server-provider-preset");
+    const providerInput = document.querySelector("#server-provider");
     const setValue = (selector, value, overwrite = false) => {
       const field = document.querySelector(selector);
       if (!field || value === undefined || value === null || value === "") return;
@@ -115,7 +127,46 @@
       setValue("#server-currency", item.default_currency, true);
       const notes = [item.service_hint, item.notes].filter(Boolean).join("\n");
       setValue("#server-notes", notes);
+      syncProviderPresetFromInput();
     };
+
+    const showProviderInput = (show) => {
+      if (!providerInput) return;
+      providerInput.style.display = show ? "" : "none";
+    };
+
+    const syncProviderPresetFromInput = () => {
+      if (!providerPreset || !providerInput) return;
+      const value = (providerInput.value || "").trim().toLowerCase();
+      if (!value) {
+        providerPreset.value = "";
+        showProviderInput(true);
+        return;
+      }
+      for (const option of providerPreset.options) {
+        if (option.value && option.value !== "__custom__" && option.value.toLowerCase() === value) {
+          providerPreset.value = option.value;
+          showProviderInput(false);
+          return;
+        }
+      }
+      providerPreset.value = "__custom__";
+      showProviderInput(true);
+    };
+
+    providerPreset?.addEventListener("change", () => {
+      if (providerPreset.value === "__custom__") {
+        showProviderInput(true);
+        providerInput?.focus();
+        return;
+      }
+      if (!providerPreset.value) {
+        showProviderInput(true);
+        return;
+      }
+      setValue("#server-provider", providerPreset.value, true);
+      showProviderInput(false);
+    });
     const bootPicker = () => {
       if (templatePicker && window.initTemplatePicker) {
         initTemplatePicker(templatePicker, templates, (item) => applyTemplate(item));
@@ -132,6 +183,9 @@
       setValue("#server-provider", item.provider, true);
       setValue("#server-panel-url", item.panel_url);
       setValue("#server-payment-url", item.payment_url || item.panel_url);
+      syncProviderPresetFromInput();
     });
+
+    syncProviderPresetFromInput();
   })();
 </script>

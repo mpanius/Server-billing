@@ -112,15 +112,75 @@ def billmanager_presets(templates: list[dict[str, object]] | None = None) -> lis
             str(item.get("payment_url") or ""),
         )
 
-    for label, url in (
-        ("QWINS", "https://my.qwins.co/billmgr"),
-        ("OnlineVDS", "https://my.onlinevds.ru/billmgr"),
-        ("LN-Tech", "https://lk.ln-tech.ru/billmgr"),
+    for label, domain, url in (
+        ("QWINS", "qwins.co", "https://my.qwins.co/billmgr"),
+        ("OnlineVDS", "onlinevds.ru", "https://my.onlinevds.ru/billmgr"),
+        ("LN-Tech", "ln-tech.ru", "https://lk.ln-tech.ru/billmgr"),
     ):
-        add(label, label.lower().replace(" ", ""), url)
+        add(label, domain, url)
 
     presets.sort(key=lambda item: item["name"].lower())
     return presets
+
+
+def integration_host_options(templates: list[dict[str, object]] | None = None) -> list[dict[str, str]]:
+    """Хостеры с готовой интеграцией для выпадающих списков в формах."""
+    options: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    def add_option(
+        name: str,
+        domain: str,
+        integration_type: str,
+        integration_url: str = "",
+        panel_url: str = "",
+        payment_url: str = "",
+        service_hint: str = "",
+        notes: str = "",
+    ) -> None:
+        key = (domain or name).strip().lower()
+        if not key or key in seen:
+            return
+        seen.add(key)
+        options.append(
+            {
+                "name": name.strip(),
+                "domain": domain.strip() or name.strip(),
+                "integration_type": integration_type,
+                "integration_url": integration_url,
+                "panel_url": panel_url,
+                "payment_url": payment_url,
+                "service_hint": service_hint,
+                "notes": notes,
+            }
+        )
+
+    for preset in billmanager_presets(templates):
+        add_option(
+            preset["name"],
+            preset["domain"],
+            "billmanager",
+            preset["integration_url"],
+            preset["panel_url"],
+            preset["payment_url"],
+        )
+
+    for item in templates or []:
+        if str(item.get("integration_type") or "") != "onedash":
+            continue
+        add_option(
+            str(item.get("name") or "OneDash"),
+            str(item.get("domain") or ""),
+            "onedash",
+            str(item.get("integration_url") or ""),
+            str(item.get("panel_url") or ""),
+            str(item.get("payment_url") or ""),
+            str(item.get("service_hint") or ""),
+            str(item.get("notes") or ""),
+        )
+
+    options.sort(key=lambda item: item["name"].lower())
+    return options
 
 
 def resolve_billmanager_url(integration_url: str, panel_url: str, provider: str = "") -> str:
