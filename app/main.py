@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.auth import COOKIE_NAME, check_login, create_session_token, hash_password, is_authenticated
+from app.ip_access import client_ip, is_address_allowed, is_ip_allowed, normalize_allowlist, panel_ip_allowlist_text
 from app.config import settings
 from app.db import init_db
 from app.repository import (
@@ -114,6 +115,17 @@ async def require_login(request: Request, call_next):
     if request.url.path not in public_paths and not request.url.path.startswith(public_prefixes):
         if not is_authenticated(request):
             return RedirectResponse("/login", status_code=303)
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def enforce_ip_allowlist(request: Request, call_next):
+    if not request.url.path.startswith("/static/") and not is_ip_allowed(request):
+        return templates.TemplateResponse(
+            "ip_blocked.html",
+            {"request": request, "client_ip": client_ip(request)},
+            status_code=403,
+        )
     return await call_next(request)
 
 
@@ -843,6 +855,8 @@ def settings_page(request: Request, saved: str = "", tested: str = "") -> HTMLRe
             "catalog_sync_enabled": bool(settings.provider_catalog_url),
             "version": current_version(),
             "web_terminal_enabled": web_terminal_enabled(),
+            "panel_ip_allowlist": panel_ip_allowlist_text(),
+            "client_ip": client_ip(request),
         },
     )
 
@@ -997,6 +1011,17 @@ def update_application() -> RedirectResponse:
 def toggle_web_terminal(enabled: str = Form("0")) -> RedirectResponse:
     set_app_setting("web_terminal_enabled", "1" if enabled.strip() == "1" else "0")
     return RedirectResponse("/settings?saved=1#web-terminal", status_code=303)
+
+
+@app.post("/settings/ip-allowlist")
+def save_ip_allowlist(request: Request, allowlist: str = Form("")) -> RedirectResponse:
+    normalized, errors = normalize_allowlist(allowlist)
+    if errors:
+        return RedirectResponse("/settings?ip_allowlist=invalid#ip-access", status_code=303)
+    if normalized and not is_address_allowed(client_ip(request), normalized):
+        return RedirectResponse("/settings?ip_allowlist=lockout#ip-access", status_code=303)
+    set_app_setting("panel_ip_allowlist", normalized)
+    return RedirectResponse("/settings?ip_allowlist=saved#ip-access", status_code=303)
 
 
 @app.post("/settings/password")

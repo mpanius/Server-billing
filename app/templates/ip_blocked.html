@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Доступ запрещён · Server Billing</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <div class="login-card">
+      <span class="brand-mark">SB</span>
+      <h1>Доступ запрещён</h1>
+      <p>Панель доступна только с IP-адресов из белого списка.</p>
+      {% if client_ip %}
+      <p class="muted">Ваш IP: <strong>{{ client_ip }}</strong></p>
+      {% endif %}
+      <p class="muted">Если вы администратор, добавьте этот адрес в настройках панели или через переменную <code>PANEL_IP_ALLOWLIST</code> на сервере.</p>
+    </div>
+  </main>
+</body>
+</html>

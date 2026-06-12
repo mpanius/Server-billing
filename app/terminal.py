@@ -21,6 +21,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from app.auth import COOKIE_NAME, auth_enabled, verify_session_token
 from app.config import settings
 from app.db import database_path
+from app.ip_access import is_websocket_ip_allowed
 from app.repository import get_app_setting, get_server
 
 WEB_TERMINAL_FLAG = "web_terminal_enabled"
@@ -76,6 +77,11 @@ async def terminal_websocket(websocket: WebSocket, server_id: int) -> None:
     if not _authenticated(websocket):
         await _notify(websocket, "error", "Не авторизовано. Войдите в панель заново.")
         await websocket.close(code=4401)
+        return
+
+    if not is_websocket_ip_allowed(websocket):
+        await _notify(websocket, "error", "Доступ с вашего IP-адреса запрещён.")
+        await websocket.close(code=4403)
         return
 
     if not web_terminal_enabled():

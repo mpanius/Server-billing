@@ -63,6 +63,45 @@
 {% elif chat == "pick" and not detected_chats %}
 <div class="notice">Список чатов устарел. Нажмите «Найти мой чат» ещё раз.</div>
 {% endif %}
+{% if request.query_params.get("ip_allowlist") == "saved" %}
+<div class="notice success">Белый список IP сохранён.</div>
+{% elif request.query_params.get("ip_allowlist") == "invalid" %}
+<div class="notice">Не удалось сохранить: проверьте формат IP-адресов и подсетей (CIDR).</div>
+{% elif request.query_params.get("ip_allowlist") == "lockout" %}
+<div class="notice">Сохранение отклонено: ваш текущий IP ({{ client_ip or "не определён" }}) должен быть в списке.</div>
+{% endif %}
+
+<section class="settings-section" id="ip-access">
+  <div class="settings-section-head">
+    <h2>Доступ к панели</h2>
+  </div>
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Белый список IP</h2>
+      <span>{{ "ограничен" if panel_ip_allowlist else "открыт" }}</span>
+    </div>
+    <p class="muted">
+      Разрешить вход в панель только с указанных IP или подсетей (например <code>203.0.113.10</code> или <code>192.168.1.0/24</code>).
+      Пустой список — доступ без ограничений. Локальные адреса (<code>127.0.0.1</code>) всегда разрешены для доступа с сервера.
+    </p>
+    {% if client_ip %}
+    <p class="muted">Ваш текущий IP: <strong>{{ client_ip }}</strong></p>
+    {% endif %}
+    <form method="post" action="/settings/ip-allowlist" class="stack-form">
+      <label>
+        Разрешённые адреса (по одному на строку)
+        <textarea id="ip-allowlist" name="allowlist" rows="6" placeholder="203.0.113.10&#10;192.168.1.0/24">{{ panel_ip_allowlist }}</textarea>
+      </label>
+      <div class="form-actions">
+        {% if client_ip %}
+        <button class="secondary" type="button" id="add-my-ip">Добавить мой IP</button>
+        {% endif %}
+        <button class="primary" type="submit">Сохранить белый список</button>
+      </div>
+    </form>
+    <p class="muted">За reverse proxy (Caddy, nginx) панель берёт IP из заголовков <code>X-Forwarded-For</code> / <code>X-Real-IP</code>. Можно задать начальный список через <code>PANEL_IP_ALLOWLIST</code> в .env.</p>
+  </aside>
+</section>
 
 <section class="panel setup-wizard" id="telegram-setup">
   <div class="panel-head">
@@ -499,6 +538,16 @@
     const [href, text] = sources[currencySelect.value] || sources.RUB;
     sourceLink.href = href;
     sourceLink.textContent = text;
+  });
+
+  const addMyIpBtn = document.querySelector("#add-my-ip");
+  const ipAllowlist = document.querySelector("#ip-allowlist");
+  const myIp = {{ client_ip|tojson }};
+  addMyIpBtn?.addEventListener("click", () => {
+    if (!myIp || !ipAllowlist) return;
+    const lines = ipAllowlist.value.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (lines.includes(myIp)) return;
+    ipAllowlist.value = lines.length ? `${ipAllowlist.value.replace(/\s+$/, "")}\n${myIp}` : myIp;
   });
 </script>
 {% endblock %}
