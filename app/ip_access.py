@@ -172,8 +172,6 @@ def is_address_allowed(addr_text: str, allowlist_text: str | None = None) -> boo
         addr = ipaddress.ip_address(addr_text)
     except ValueError:
         return False
-    if is_localhost(addr):
-        return True
     for entry in parse_allowlist(text):
         if isinstance(entry, (ipaddress.IPv4Network, ipaddress.IPv6Network)):
             if addr in entry:

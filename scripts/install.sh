@@ -44,6 +44,7 @@ prompt_secret() {
 write_initial_version() {
   local version
   mkdir -p "$INSTALL_DIR/data"
+  chown -R 1000:1000 "$INSTALL_DIR/data"
   version="$(git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
   cat > "$INSTALL_DIR/data/app_version.json" <<EOF
 {

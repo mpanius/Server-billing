@@ -24,7 +24,7 @@ from app.auth import (
     login_rate_limited,
     record_login_failure,
 )
-from app.csrf import csrf_protect_middleware
+from app.csrf import CSRF_COOKIE, csrf_protect_middleware
 from app.ip_access import client_ip, is_address_allowed, is_ip_allowed, normalize_allowlist, panel_ip_allowlist_text
 from app.config import settings
 from app.db import init_db
@@ -152,6 +152,17 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "frame-ancestors 'none'; "
+        "object-src 'none'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "connect-src 'self' wss: ws:;"
+    )
     if (
         request.url.scheme == "https"
         or request.headers.get("x-forwarded-proto", "").lower() == "https"
@@ -241,9 +252,14 @@ async def login(
 
 
 @app.post("/logout")
-def logout() -> RedirectResponse:
+def logout(request: Request) -> RedirectResponse:
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(COOKIE_NAME)
+    is_secure = (
+        request.url.scheme == "https"
+        or request.headers.get("x-forwarded-proto", "").lower() == "https"
+    )
+    response.delete_cookie(CSRF_COOKIE, httponly=True, secure=is_secure, samesite="strict")
     return response
 
 

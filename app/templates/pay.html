@@ -55,12 +55,13 @@
       <summary>Данные входа <small class="muted">(нажмите, чтобы показать)</small></summary>
       <dl>
         <div><dt>Логин сервера</dt><dd>{{ server.server_login or "не указан" }}</dd></div>
-        <div><dt>Пароль сервера</dt><dd>{% if server.server_password %}<span class="secret-value">{{ server.server_password }}</span>{% else %}не указан{% endif %}</dd></div>
+        <div><dt>Пароль сервера</dt><dd>{% if server.server_password %}<span class="secret-mask">задан</span>{% else %}не указан{% endif %}</dd></div>
         <div><dt>Аккаунт</dt><dd>{{ server.account_name or "не привязан" }}</dd></div>
         <div><dt>Логин</dt><dd>{{ server.account_login or "не указан" }}</dd></div>
-        <div><dt>Секрет</dt><dd>{% if server.account_secret %}<span class="secret-value">{{ server.account_secret }}</span>{% else %}не указан{% endif %}</dd></div>
+        <div><dt>Секрет</dt><dd>{% if server.account_secret %}<span class="secret-mask">задан</span>{% else %}не указан{% endif %}</dd></div>
         <div><dt>Кабинет</dt><dd>{{ server.effective_panel_url or "не указан" }}</dd></div>
       </dl>
+      <p class="muted">Пароли и API-ключи не показываются на этой странице — откройте правку сервера или аккаунта.</p>
     </details>
     {% endif %}
     <section class="auth-box">

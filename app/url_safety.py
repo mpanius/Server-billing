@@ -89,6 +89,13 @@ def assert_public_host(host: str, *, context: str = "хост") -> str:
     return cleaned
 
 
+def assert_https_public_url(url: str, *, context: str = "URL") -> str:
+    cleaned = assert_public_http_url(url, context=context)
+    if not cleaned.lower().startswith("https://"):
+        raise ConnectorError(f"{context}: разрешены только ссылки https://.")
+    return cleaned
+
+
 def assert_host_suffix(url: str, allowed_suffixes: tuple[str, ...], *, context: str = "URL") -> str:
     cleaned = assert_public_http_url(url, context=context)
     hostname = (urlparse(cleaned).hostname or "").lower()

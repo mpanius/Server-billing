@@ -16,7 +16,9 @@ COMPOSE_SERVICES = [
 ]
 INSTALL_DIR = Path(os.environ.get("INSTALL_DIR", "/repo")).resolve()
 TOKEN = os.environ.get("UPDATER_TOKEN", "")
+MIN_TOKEN_LENGTH = 32
 PORT = int(os.environ.get("UPDATER_PORT", "8765"))
+BIND_HOST = os.environ.get("UPDATER_BIND", "0.0.0.0")
 LOG_PATH = INSTALL_DIR / "data" / "last_update.log"
 VERSION_PATH = INSTALL_DIR / "data" / "app_version.json"
 
@@ -116,7 +118,10 @@ class UpdateHandler(BaseHTTPRequestHandler):
         if self.path != "/update":
             self.respond(404, {"ok": False, "message": "Not found."})
             return
-        if not TOKEN or self.headers.get("X-Update-Token") != TOKEN:
+        if not TOKEN or len(TOKEN) < MIN_TOKEN_LENGTH:
+            self.respond(403, {"ok": False, "message": "Update token is not configured."})
+            return
+        if self.headers.get("X-Update-Token") != TOKEN:
             self.respond(403, {"ok": False, "message": "Forbidden."})
             return
         with lock:
@@ -140,5 +145,5 @@ class UpdateHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), UpdateHandler)
+    server = ThreadingHTTPServer((BIND_HOST, PORT), UpdateHandler)
     server.serve_forever()
