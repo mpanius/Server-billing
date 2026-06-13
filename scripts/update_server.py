@@ -90,6 +90,9 @@ def update_repository() -> None:
         )
         run_command(["git", "config", "--global", "--add", "safe.directory", str(INSTALL_DIR)])
         run_command(["git", "pull", "--ff-only"])
+        migrate_script = INSTALL_DIR / "scripts" / "migrate-keys-to-files.sh"
+        if migrate_script.is_file():
+            run_command(["bash", str(migrate_script), str(INSTALL_DIR)])
         run_command(
             [
                 "docker",

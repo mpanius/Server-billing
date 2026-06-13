@@ -251,7 +251,9 @@ PY
   echo "must allow SSH from $panel_ip. Set the SSH port per server (default 22)."
   echo "Known host keys are stored in $INSTALL_DIR/data/ssh_known_hosts.json (TOFU)."
   echo
-  echo "Update later from the web panel or with: cd $INSTALL_DIR && git pull && docker compose -f docker-compose.prod.yml up -d --build"
+  echo "Update later from the web panel or with:"
+  echo "  cd $INSTALL_DIR && git pull && bash scripts/migrate-keys-to-files.sh $INSTALL_DIR && docker compose -f docker-compose.prod.yml up -d --build"
+  echo "Master keys: $INSTALL_DIR/secrets/ (not in .env)"
 }
 
 main "$@"

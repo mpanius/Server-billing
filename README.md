@@ -454,14 +454,16 @@ curl -I "https://$(grep '^CADDY_SITE_ADDRESS=' .env | cut -d= -f2-)/login"
 
 ### 6. Обновление вручную
 
-Перед обновлением сохраните папку `data/` (там SQLite-база и ключи SSH для терминала).
+Перед обновлением сохраните папки `data/` и `secrets/` (SQLite, SSH known_hosts и master-ключи шифрования).
 
 **Стандартная установка (Caddy):**
 
 ```bash
 cd /opt/server-billing
 git pull --ff-only
+bash scripts/migrate-keys-to-files.sh /opt/server-billing
 docker compose -f docker-compose.prod.yml up -d --build
+sudo chown -R 1000:1000 data secrets
 ```
 
 **Без Caddy** (свой reverse proxy):
@@ -469,10 +471,14 @@ docker compose -f docker-compose.prod.yml up -d --build
 ```bash
 cd /opt/server-billing
 git pull --ff-only
+bash scripts/migrate-keys-to-files.sh /opt/server-billing
 docker compose -f docker-compose.nginx.yml up -d --build
+sudo chown -R 1000:1000 data secrets
 ```
 
-Кнопка «Обновить сервис» в панели делает то же самое автоматически, если в `.env` заданы `APP_UPDATE_URL` и `APP_UPDATE_TOKEN`.
+Скрипт `migrate-keys-to-files.sh` переносит ключи из `.env` в `secrets/` (один раз). Если ключи уже в файлах — ничего не меняет.
+
+Кнопка **«Обновить сервис»** в панели делает `git pull`, миграцию ключей и пересборку автоматически (нужны `APP_UPDATE_URL` и `APP_UPDATE_TOKEN` в `.env`).
 
 ## Свой reverse proxy (nginx, Apache и др.)
 
@@ -593,9 +599,11 @@ Caddy автоматически выпустит HTTPS-сертификат.
 
 ## Обновление
 
-**Из панели:** `Настройки → Обновить сервис` (нужны `APP_UPDATE_URL` и `APP_UPDATE_TOKEN` в `.env`).
+**Из панели:** `Настройки → Обновить сервис` — `git pull`, перенос ключей в `secrets/` (если ещё в `.env`), пересборка контейнеров.
 
-**Вручную:** команды в [шаге 6 ручной установки](#6-обновление-вручную). Перед обновлением сохраните папку `data/` или отправьте backup в Telegram из настроек.
+**Вручную:** [шаг 6](#6-обновление-вручную). Перед обновлением сохраните `data/` и `secrets/` или отправьте backup из настроек.
+
+**С нуля:** `install.sh` создаёт `secrets/session.key` и `secrets/encryption.key` автоматически — как на prod после миграции.
 
 ## Данные
 

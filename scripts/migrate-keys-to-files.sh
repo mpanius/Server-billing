@@ -20,8 +20,12 @@ session_key="$(read_env_value APP_SECRET_KEY)"
 encryption_key="$(read_env_value APP_ENCRYPTION_KEY)"
 
 if [ -z "$session_key" ] && [ -z "$encryption_key" ]; then
-  echo "В .env нет APP_SECRET_KEY / APP_ENCRYPTION_KEY — возможно, уже перенесено."
-  exit 0
+  if [ -f "$SECRETS_DIR/encryption.key" ] && [ -f "$SECRETS_DIR/session.key" ]; then
+    echo "Ключи уже в secrets/ — миграция не требуется."
+    exit 0
+  fi
+  echo "В .env нет APP_SECRET_KEY / APP_ENCRYPTION_KEY и secrets/*.key не найдены." >&2
+  exit 1
 fi
 
 mkdir -p "$SECRETS_DIR"
