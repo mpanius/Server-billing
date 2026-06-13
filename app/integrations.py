@@ -21,7 +21,7 @@ INTEGRATION_OPTIONS: list[dict[str, str]] = [
     {
         "id": "aeza",
         "label": "Aeza API",
-        "hint": "API-ключ из my.aeza.net → Настройки → API-ключи. Подтягивает VPS, IP, суммы и даты продления.",
+        "hint": "API-ключ из my.aeza.net → Настройки → API-ключи. Подтягивает VPS, IP, суммы и даты продления. Док.: my.aeza.net/api/v2/docs",
     },
 ]
 

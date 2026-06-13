@@ -1,6 +1,7 @@
 """Коннектор Aeza API (только чтение).
 
-Док.: https://github.com/BlxssdCoder/AezaAPI
+Док.: https://my.aeza.net/api/v2/docs#/
+     https://github.com/AezaGroup/dev-docs
 API-ключ: https://my.aeza.net/settings/apikeys
 """
 from __future__ import annotations
