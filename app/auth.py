@@ -12,6 +12,7 @@ from fastapi import Request
 
 from app.config import settings
 from app.db import connect
+from app.secrets_store import session_secret_key
 
 COOKIE_NAME = "sb_session"
 SESSION_VERSION_KEY = "session_version"
