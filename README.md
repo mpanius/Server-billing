@@ -3,7 +3,15 @@
 
 # Server Billing Manager
 
+Self-hosted dashboard for tracking server renewals, hosting accounts, payment deadlines, and provider links in one place.
+
 Self-hosted панель для учета серверов, сроков оплаты и быстрых переходов к оплате у хостинг-провайдера.
+
+## Why it exists
+
+- If you manage several VPS or dedicated servers across different providers.
+- If you want one place for renewal dates, provider logins, payment links, and reminders.
+- If you want to avoid missed renewals without storing payment cards inside the app.
 
 Сервис не проводит платежи сам и не хранит банковские карты. Он напоминает о сроках, показывает нужный сервер, хранит ссылку на кабинет/оплату и помогает быстро перейти к провайдеру.
 
