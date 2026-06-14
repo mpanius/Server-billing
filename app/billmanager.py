@@ -51,6 +51,10 @@ KNOWN_BILLMANAGER_HOSTS = {
     "vps1.net": "https://bill.vps1.net/billmgr",
     "bill.vps1.net": "https://bill.vps1.net/billmgr",
     "host.kg": "https://my.host.kg/manager/billmgr",
+    "senko.digital": "https://my.senko.digital/billmgr",
+    "serv.host": "https://my.serv.host/billmgr",
+    "u1host.com": "https://my.u1host.com/billmgr",
+    "xorek.cloud": "https://my.xorek.cloud/billmgr",
 }
 
 BILLMANAGER_BUILTIN_PRESETS: tuple[tuple[str, str, str], ...] = (
@@ -68,6 +72,10 @@ BILLMANAGER_BUILTIN_PRESETS: tuple[tuple[str, str, str], ...] = (
     ("Zomro", "zomro.com", "https://cp.zomro.com/billmgr"),
     ("VPS.one", "vps.one", "https://bill.vps1.net/billmgr"),
     ("Host.kg", "host.kg", "https://my.host.kg/manager/billmgr"),
+    ("Senko Digital", "senko.digital", "https://my.senko.digital/billmgr"),
+    ("Serv.Host", "serv.host", "https://my.serv.host/billmgr"),
+    ("U1 HOST", "u1host.com", "https://my.u1host.com/billmgr"),
+    ("XorekCloud", "xorek.cloud", "https://my.xorek.cloud/billmgr"),
 )
 
 # Функции списка услуг по типам продуктов. Работают и в BM5, и в BM6.

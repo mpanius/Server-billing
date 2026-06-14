@@ -43,6 +43,11 @@ API_DOCS_BY_DOMAIN = {
     "aws.amazon.com": "https://docs.aws.amazon.com/lightsail/",
     "cloud.google.com": "https://cloud.google.com/compute/docs/reference/rest/v1",
     "4vps.su": "https://4vps.su/page/api",
+    "senko.digital": "https://wiki.senko.digital/faq",
+    "serv.host": "https://www.ispsystem.ru/docs/billmanager/razrabotchiku/billmanager-api",
+    "u1host.com": "https://www.ispsystem.ru/docs/billmanager/razrabotchiku/billmanager-api",
+    "xorek.cloud": "https://www.ispsystem.ru/docs/billmanager/razrabotchiku/billmanager-api",
+    "friendhosting.net": "https://friendhosting.net/ru/rules/api-friendhosting.php",
 }
 
 CURRENCY_SYMBOL = {"RUB": "₽", "USD": "$", "EUR": "€"}

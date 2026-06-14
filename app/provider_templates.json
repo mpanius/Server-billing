@@ -572,36 +572,45 @@
     "domain": "senko.digital",
     "website_url": "https://senko.digital/",
     "referral_url": "https://senko.digital/?ref=2554743",
-    "panel_url": "https://my.senko.digital/",
-    "payment_url": "https://my.senko.digital/",
+    "panel_url": "https://my.senko.digital/billmgr?func=logon",
+    "payment_url": "https://my.senko.digital/billmgr?func=logon",
+    "integration_type": "billmanager",
+    "integration_url": "https://my.senko.digital/billmgr",
+    "api_docs_url": "https://wiki.senko.digital/faq",
     "default_currency": "EUR",
     "billing_period_days": 30,
-    "service_hint": "my.senko.digital: услуги → виртуальный сервер; VM-панель — отдельно из кабинета.",
-    "notes": "VPS в DE/FI/NL. Линейки BUDGET, EP (EPYC), RZ9 (Ryzen). Fair-use трафик, 10 Gbit/s на части тарифов."
+    "service_hint": "my.senko.digital: Товары/услуги → виртуальный сервер; VM-панель — отдельно из кабинета.",
+    "notes": "BILLmanager 6 + VMmanager. VPS в DE/FI/NL. API (func=vds) — стандартный ISPsystem; у Senko может потребоваться запрос в поддержку / whitelist IP."
   },
   {
     "name": "Serv.Host",
     "domain": "serv.host",
     "website_url": "https://serv.host/",
     "referral_url": "https://serv.host/?from=22043",
-    "panel_url": "https://my.serv.host/",
-    "payment_url": "https://my.serv.host/",
+    "panel_url": "https://my.serv.host/billmgr?func=logon",
+    "payment_url": "https://my.serv.host/billmgr?func=logon",
+    "integration_type": "billmanager",
+    "integration_url": "https://my.serv.host/billmgr",
+    "api_docs_url": "https://www.ispsystem.ru/docs/billmanager/razrabotchiku/billmanager-api",
     "default_currency": "RUB",
     "billing_period_days": 30,
     "service_hint": "my.serv.host: виртуальные серверы → нужная услуга; VM — через VMmanager.",
-    "notes": "VPS и dedicated на Ryzen/Epyc, DDoS-Guard. Много EU-локаций + RU. Конфигуратор в кабинете."
+    "notes": "BILLmanager 6 + VMmanager. VPS и dedicated на Ryzen/Epyc, DDoS-Guard. Автосинк: логин/пароль кабинета, func=vds."
   },
   {
     "name": "U1 HOST",
     "domain": "u1host.com",
     "website_url": "https://u1host.com/",
     "referral_url": "https://u1host.com/?from=44371",
-    "panel_url": "https://my.u1host.com/",
-    "payment_url": "https://my.u1host.com/",
+    "panel_url": "https://my.u1host.com/billmgr?func=logon",
+    "payment_url": "https://my.u1host.com/billmgr?func=logon",
+    "integration_type": "billmanager",
+    "integration_url": "https://my.u1host.com/billmgr",
+    "api_docs_url": "https://www.ispsystem.ru/docs/billmanager/razrabotchiku/billmanager-api",
     "default_currency": "RUB",
     "billing_period_days": 30,
     "service_hint": "my.u1host.com: Cloud VPS → нужный сервер; trial 24 ч — через поддержку.",
-    "notes": "KVM VPS на Ryzen 5950X/7950X3D в DE/NL/FI. Anti-DDoS, custom ISO до 5 GB."
+    "notes": "BILLmanager 6. KVM VPS на Ryzen 5950X/7950X3D в DE/NL/FI. Автосинк: логин/пароль кабинета."
   },
   {
     "name": "WebHOST1",
@@ -610,10 +619,11 @@
     "referral_url": "https://webhost1.ru/?r=165784",
     "panel_url": "https://webhost1.ru/login",
     "payment_url": "https://webhost1.ru/login",
+    "integration_type": "manual",
     "default_currency": "RUB",
     "billing_period_days": 30,
     "service_hint": "webhost1.ru/login: обзор заказов → VPS/VDS → нужная услуга.",
-    "notes": "KVM VPS на NVMe, Ryzen 9950X в RU (DataPRO). Локации RU, NL, DE, US и др."
+    "notes": "Собственная биллинг-панель (HDC), не BILLmanager. Публичного client/billing API для автосинка нет — ручной учёт."
   },
   {
     "name": "Friend Hosting",
@@ -622,10 +632,12 @@
     "referral_url": "https://my.friendhosting.net/pl.php?41961",
     "panel_url": "https://my.friendhosting.net/",
     "payment_url": "https://my.friendhosting.net/",
+    "integration_type": "manual",
+    "api_docs_url": "https://friendhosting.net/ru/rules/api-friendhosting.php",
     "default_currency": "EUR",
     "billing_period_days": 30,
     "service_hint": "my.friendhosting.net: VDS → Progressive NVMe / High CPU / Storage.",
-    "notes": "Progressive NVMe, High CPU, Storage HDD VDS. EU/US локации. Промо wvds (−20% на первый месяц VDS)."
+    "notes": "RootPanel.NET API (my.friendhosting.net/apih.php, getOrders) — для реселлеров; в Server Billing коннектора пока нет. Ручной учёт клиентского кабинета."
   },
   {
     "name": "RackNerd",
@@ -634,22 +646,26 @@
     "referral_url": "https://my.racknerd.com/aff.php?aff=20296",
     "panel_url": "https://my.racknerd.com/",
     "payment_url": "https://my.racknerd.com/",
+    "integration_type": "manual",
     "default_currency": "USD",
     "billing_period_days": 30,
     "service_hint": "my.racknerd.com: Services → KVM VPS; панель VM — SolusVM.",
-    "notes": "KVM VPS, Ryzen, dedicated, colocation. 20+ DC (US, EU, Asia). Часто годовые promo-тарифы."
+    "notes": "Биллинг WHMCS (my.racknerd.com). Admin API — includes/api.php; у клиента нет API-ключа для автосинка. Ручной учёт."
   },
   {
     "name": "XorekCloud",
     "domain": "xorek.cloud",
     "website_url": "https://xorek.cloud/",
     "referral_url": "https://xorek.cloud/?from=60659",
-    "panel_url": "https://my.xorek.cloud/",
-    "payment_url": "https://my.xorek.cloud/",
+    "panel_url": "https://my.xorek.cloud/billmgr?func=logon",
+    "payment_url": "https://my.xorek.cloud/billmgr?func=logon",
+    "integration_type": "billmanager",
+    "integration_url": "https://my.xorek.cloud/billmgr",
+    "api_docs_url": "https://www.ispsystem.ru/docs/billmanager/razrabotchiku/billmanager-api",
     "default_currency": "RUB",
     "billing_period_days": 30,
     "service_hint": "my.xorek.cloud: виртуальные серверы → нужная услуга.",
-    "notes": "KVM VPS и dedicated на Ryzen. DE/FI/NL, Anti-DDoS, оплата картой и СБП."
+    "notes": "BILLmanager 6. KVM VPS и dedicated на Ryzen. DE/FI/NL. Автосинк: логин/пароль кабинета, func=vds."
   },
   {
     "name": "Play2GO",
