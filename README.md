@@ -757,6 +757,4 @@ SQLite-база хранится в:
 
 Проект распространяется под [MIT License](LICENSE). Pull request'ы приветствуются ([CONTRIBUTING.md](CONTRIBUTING.md)); ответы на issues — по возможности, без SLA.
 
-Материалы для публикации: [docs/habr-article.md](docs/habr-article.md), [docs/community-posts.md](docs/community-posts.md), [docs/awesome-selfhosted-pr.md](docs/awesome-selfhosted-pr.md).
-
 Если решите поблагодарить, то это можно сделать через тг бота @AlekseyRdonate_bot
