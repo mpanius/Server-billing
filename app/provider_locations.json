@@ -38,6 +38,7 @@
     "upcloud.com": ["FI", "DE", "US", "SG", "NL", "GB", "ES", "SE"],
     "cherryservers.com": ["NL", "DE", "US", "LT", "SG"],
     "leaseweb.com": ["NL", "DE", "US", "SG", "HK", "CA", "AU", "GB", "ES"],
-    "4vps.su": ["RU", "NL", "DE", "US", "FI", "FR", "GB", "PL", "ES", "IT", "TR", "UA", "AE", "CA", "BR", "JP", "KR", "HK", "AU", "LT", "LV", "EE", "SE", "NO", "DK", "AT", "CH", "BE", "IE", "GR", "CZ", "RO", "BG", "HR", "AL", "MK", "AM", "KZ", "SG", "IN", "MX", "ZA", "PT", "SK", "HU", "MD", "RS", "IS", "LU", "NZ", "TW", "ID", "MY", "TH", "VN", "PH"]
+    "4vps.su": ["RU", "NL", "DE", "US", "FI", "FR", "GB", "PL", "ES", "IT", "TR", "UA", "AE", "CA", "BR", "JP", "KR", "HK", "AU", "LT", "LV", "EE", "SE", "NO", "DK", "AT", "CH", "BE", "IE", "GR", "CZ", "RO", "BG", "HR", "AL", "MK", "AM", "KZ", "SG", "IN", "MX", "ZA", "PT", "SK", "HU", "MD", "RS", "IS", "LU", "NZ", "TW", "ID", "MY", "TH", "VN", "PH"],
+    "play2go.cloud": ["DE", "FI", "NL", "RU"]
   }
 }

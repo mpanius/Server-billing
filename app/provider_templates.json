@@ -566,5 +566,19 @@
     "billing_period_days": 30,
     "service_hint": "Личный кабинет или бот @FourServer_bot: выберите локацию и тариф.",
     "notes": "VPS, dedicated, хостинг и IPv4. Много локаций по миру."
+  },
+  {
+    "name": "Play2GO",
+    "domain": "play2go.cloud",
+    "website_url": "https://play2go.cloud/",
+    "referral_url": "https://play2go.cloud/?ref_id=MIMOPwe5kMU",
+    "api_docs_url": "https://play2go.wiki/",
+    "integration_type": "manual",
+    "panel_url": "https://control.play2go.cloud/",
+    "payment_url": "https://control.play2go.cloud/",
+    "default_currency": "EUR",
+    "billing_period_days": 30,
+    "service_hint": "control.play2go.cloud: Виртуальные серверы → нужная услуга; пополнение через кошелёк в кабинете.",
+    "notes": "VDS, игровые и выделенные серверы, DDoS. Линейки: PROMO, LOW-COST, AMD Ryzen, HI-LOAD, STORAGE. Публичного billing/API для sync нет — ручной учёт."
   }
 ]
