@@ -1044,6 +1044,209 @@
         "traffic_tb": 5
       }
     ],
+    "senko.digital": [
+      {
+        "name": "BUDGET · 1 vCPU",
+        "price": 2.29,
+        "currency": "EUR",
+        "cpu": 1,
+        "ram_gb": 1,
+        "storage_gb": 20,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "DE-EPYC-1",
+        "price": 4.49,
+        "currency": "EUR",
+        "cpu": 1,
+        "ram_gb": 2,
+        "storage_gb": 30,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "DE-EPYC-2",
+        "price": 8.49,
+        "currency": "EUR",
+        "cpu": 2,
+        "ram_gb": 4,
+        "storage_gb": 60,
+        "traffic_unlimited": true
+      }
+    ],
+    "serv.host": [
+      {
+        "name": "Epyc-7502-1",
+        "price": 150,
+        "currency": "RUB",
+        "cpu": 1,
+        "ram_gb": 1,
+        "storage_gb": 10,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "Ryzen-5950X-0.5",
+        "price": 285,
+        "currency": "RUB",
+        "cpu": 1,
+        "ram_gb": 2,
+        "storage_gb": 25,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "Ryzen-7950X-1",
+        "price": 730,
+        "currency": "RUB",
+        "cpu": 1,
+        "ram_gb": 4,
+        "storage_gb": 45,
+        "traffic_unlimited": true
+      }
+    ],
+    "u1host.com": [
+      {
+        "name": "PROMO",
+        "price": 149,
+        "currency": "RUB",
+        "cpu": 1,
+        "ram_gb": 1,
+        "storage_gb": 15,
+        "traffic_tb": 1
+      },
+      {
+        "name": "5950X-1",
+        "price": 369,
+        "currency": "RUB",
+        "cpu": 1,
+        "ram_gb": 2,
+        "storage_gb": 30,
+        "traffic_tb": 32
+      },
+      {
+        "name": "5950X-2",
+        "price": 559,
+        "currency": "RUB",
+        "cpu": 2,
+        "ram_gb": 4,
+        "storage_gb": 60,
+        "traffic_tb": 32
+      }
+    ],
+    "webhost1.ru": [
+      {
+        "name": "RU NVMe (от)",
+        "price": 272,
+        "currency": "RUB",
+        "cpu": 1,
+        "ram_gb": 1,
+        "storage_gb": 20,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "DE NVMe 20",
+        "price": 357,
+        "currency": "RUB",
+        "cpu": 1,
+        "ram_gb": 2,
+        "storage_gb": 20,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "DE NVMe 40",
+        "price": 553,
+        "currency": "RUB",
+        "cpu": 2,
+        "ram_gb": 2,
+        "storage_gb": 40,
+        "traffic_unlimited": true
+      }
+    ],
+    "friendhosting.net": [
+      {
+        "name": "Micro+ NVMe",
+        "price": 3.49,
+        "currency": "EUR",
+        "cpu": 1,
+        "ram_gb": 0.5,
+        "storage_gb": 10,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "Start NVMe",
+        "price": 4.49,
+        "currency": "EUR",
+        "cpu": 1,
+        "ram_gb": 1,
+        "storage_gb": 10,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "Plus NVMe",
+        "price": 8.49,
+        "currency": "EUR",
+        "cpu": 2,
+        "ram_gb": 2,
+        "storage_gb": 20,
+        "traffic_unlimited": true
+      }
+    ],
+    "racknerd.com": [
+      {
+        "name": "KVM VPS · 1 GB (promo)",
+        "price": 2.24,
+        "currency": "USD",
+        "cpu": 1,
+        "ram_gb": 1,
+        "storage_gb": 20,
+        "traffic_tb": 3
+      },
+      {
+        "name": "KVM VPS · 2 GB (promo)",
+        "price": 3.0,
+        "currency": "USD",
+        "cpu": 2,
+        "ram_gb": 2,
+        "storage_gb": 35,
+        "traffic_tb": 5
+      },
+      {
+        "name": "KVM VPS · 1 GB",
+        "price": 17.99,
+        "currency": "USD",
+        "cpu": 2,
+        "ram_gb": 1,
+        "storage_gb": 50,
+        "traffic_tb": 1
+      }
+    ],
+    "xorek.cloud": [
+      {
+        "name": "DE-PROMO",
+        "price": 149,
+        "currency": "RUB",
+        "cpu": 1,
+        "ram_gb": 4,
+        "storage_gb": 10,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "DE-R9-4",
+        "price": 399,
+        "currency": "RUB",
+        "cpu": 2,
+        "ram_gb": 4,
+        "storage_gb": 60,
+        "traffic_unlimited": true
+      },
+      {
+        "name": "DE-R9-16",
+        "price": 1399,
+        "currency": "RUB",
+        "cpu": 8,
+        "ram_gb": 16,
+        "storage_gb": 240,
+        "traffic_unlimited": true
+      }
+    ],
     "play2go.cloud": [
       {
         "name": "PROMO · 1 vCPU",
@@ -1137,5 +1340,5 @@
       }
     ]
   },
-  "prices_as_of": "2026-06-14"
+  "prices_as_of": "2026-06-11"
 }

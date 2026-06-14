@@ -39,6 +39,13 @@
     "cherryservers.com": ["NL", "DE", "US", "LT", "SG"],
     "leaseweb.com": ["NL", "DE", "US", "SG", "HK", "CA", "AU", "GB", "ES"],
     "4vps.su": ["RU", "NL", "DE", "US", "FI", "FR", "GB", "PL", "ES", "IT", "TR", "UA", "AE", "CA", "BR", "JP", "KR", "HK", "AU", "LT", "LV", "EE", "SE", "NO", "DK", "AT", "CH", "BE", "IE", "GR", "CZ", "RO", "BG", "HR", "AL", "MK", "AM", "KZ", "SG", "IN", "MX", "ZA", "PT", "SK", "HU", "MD", "RS", "IS", "LU", "NZ", "TW", "ID", "MY", "TH", "VN", "PH"],
-    "play2go.cloud": ["DE", "FI", "NL", "RU"]
+    "play2go.cloud": ["DE", "FI", "NL", "RU"],
+    "senko.digital": ["DE", "FI", "NL"],
+    "serv.host": ["RU", "DE", "NL", "GB", "US", "FI", "FR"],
+    "u1host.com": ["DE", "NL", "FI"],
+    "webhost1.ru": ["RU", "NL", "DE", "US", "IL", "TR", "HK"],
+    "friendhosting.net": ["US", "NL", "DE", "UA", "RU"],
+    "racknerd.com": ["US", "NL", "GB", "FR", "DE", "SG", "CA"],
+    "xorek.cloud": ["DE", "FI", "NL"]
   }
 }
