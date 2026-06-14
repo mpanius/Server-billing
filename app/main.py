@@ -5,6 +5,7 @@ import json
 import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
+from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request, WebSocket
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -986,6 +987,7 @@ def settings_page(request: Request, saved: str = "", tested: str = "") -> HTMLRe
             "checked": request.query_params.get("checked", ""),
             "rates": request.query_params.get("rates", ""),
             "updated": request.query_params.get("updated", ""),
+            "update_error": request.query_params.get("update_error", ""),
             "update_enabled": bool(settings.app_update_url and settings.app_update_token),
             "catalog_sync": catalog_sync_status(),
             "catalog_sync_enabled": bool(settings.provider_catalog_url),
@@ -1136,11 +1138,14 @@ def sync_catalog_now() -> RedirectResponse:
 @app.post("/settings/update")
 def update_application() -> RedirectResponse:
     try:
-        started, _message = start_system_update()
-        result = "1" if started else "0"
+        started, message = start_system_update()
+        if started:
+            return RedirectResponse("/settings?updated=1", status_code=303)
+        detail = quote(message[:240]) if message else ""
+        suffix = f"&update_error={detail}" if detail else ""
+        return RedirectResponse(f"/settings?updated=0{suffix}", status_code=303)
     except Exception:
-        result = "0"
-    return RedirectResponse(f"/settings?updated={result}", status_code=303)
+        return RedirectResponse("/settings?updated=0", status_code=303)
 
 
 @app.post("/settings/web-terminal")

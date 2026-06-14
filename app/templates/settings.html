@@ -40,7 +40,7 @@
 {% if updated == "1" %}
 <div class="notice success">Обновление запущено. Подождите минуту и обновите страницу.</div>
 {% elif updated == "0" %}
-<div class="notice">Не удалось запустить обновление. Проверьте updater service и токен.</div>
+<div class="notice">Не удалось запустить обновление. {% if update_error %}{{ update_error }}{% else %}Проверьте updater service и токен.{% endif %}</div>
 {% endif %}
 {% if request.query_params.get("catalog") == "1" %}
 <div class="notice success">Каталог провайдеров обновлён.</div>

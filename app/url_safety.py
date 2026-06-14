@@ -96,6 +96,15 @@ def assert_https_public_url(url: str, *, context: str = "URL") -> str:
     return cleaned
 
 
+def assert_update_service_url(url: str, *, context: str = "APP_UPDATE_URL") -> str:
+    """URL updater из .env (Docker internal), не пользовательский ввод."""
+    cleaned = validate_http_url(url, field=context, allow_empty=False)
+    hostname = (urlparse(cleaned).hostname or "").lower()
+    if hostname in {"169.254.169.254", "metadata.google.internal"}:
+        raise ConnectorError(f"{context}: запрещён адрес облачных metadata.")
+    return cleaned
+
+
 def assert_host_suffix(url: str, allowed_suffixes: tuple[str, ...], *, context: str = "URL") -> str:
     cleaned = assert_public_http_url(url, context=context)
     hostname = (urlparse(cleaned).hostname or "").lower()
