@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from collections import defaultdict
 
 from app.config import settings
-from app.crypto import EncryptionRequiredError, encrypt_secret, is_encrypted
+from app.crypto import EncryptionRequiredError, decrypt_secret, encrypt_secret, is_encrypted
 from app.currency import fetch_currency_rates, rates_from_string, rates_to_string, today_label
 from app.db import connect
 from app.models import (
