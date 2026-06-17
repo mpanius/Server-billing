@@ -86,6 +86,7 @@ curl -fsSL https://raw.githubusercontent.com/AlekseyRusaleev/Server-billing/main
 - Смена пароля администратора в веб-панели.
 - Страница подключения собственного домена (в разделе `Настройки`).
 - Развертывание через Docker Compose и Caddy **или** через nginx на уже занятом 443 порту.
+- **Proxmox VE:** скрипт [`scripts/proxmox-lxc-deploy.sh`](scripts/proxmox-lxc-deploy.sh) — LXC + Docker + clone, затем `install.sh` внутри CT.
 - HTTPS без домена через `IP.sslip.io` или собственный домен с сертификатом Caddy.
 
 ## Установка одной командой
@@ -121,7 +122,53 @@ https://YOUR_SERVER_IP.sslip.io
 
 Обычный адрес `http://YOUR_SERVER_IP` будет редиректить на защищенную HTTPS-ссылку.
 
-Если автоматический установщик не подходит, используйте [ручную установку](#ручная-установка-без-installsh).
+Если автоматический установщик не подходит, используйте [ручную установку](#ручная-установка-без-installsh) или [развёртывание в LXC на Proxmox VE](#proxmox-ve-lxc).
+
+## Proxmox VE (LXC)
+
+Для [Proxmox VE](https://www.proxmox.com/) есть скрипт, который на **хосте Proxmox** создаёт LXC-контейнер с поддержкой Docker (`nesting=1`), ставит Docker, клонирует репозиторий и оставляет финальный шаг — интерактивный `install.sh` (пароли и HTTPS).
+
+**Требования:** Proxmox VE 7/8, root на узле, шаблон Debian 12 (скачивается через `pveam`, если нет локально). По умолчанию контейнер **privileged** — так надёжнее работает Docker в LXC.
+
+На shell **хоста Proxmox** (не внутри CT):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AlekseyRusaleev/Server-billing/main/scripts/proxmox-lxc-deploy.sh -o /tmp/proxmox-lxc-deploy.sh
+bash /tmp/proxmox-lxc-deploy.sh
+```
+
+Параметры (примеры):
+
+```bash
+bash /tmp/proxmox-lxc-deploy.sh \
+  --ctid 120 \
+  --hostname server-billing \
+  --memory 2048 \
+  --cores 2 \
+  --disk 16 \
+  --static 192.168.1.50/24 \
+  --gateway 192.168.1.1
+```
+
+| Параметр | По умолчанию | Описание |
+|----------|--------------|----------|
+| `--ctid` | следующий свободный ≥100 | ID контейнера |
+| `--hostname` | `server-billing` | имя хоста в CT |
+| `--storage` | `local-lvm` | хранилище rootfs |
+| `--bridge` | `vmbr0` | Linux bridge |
+| `--dhcp` | да | DHCP (или `--static CIDR` + `--gateway`) |
+| `--unprivileged 0` | privileged | для Docker рекомендуется `0` |
+
+После скрипта завершите установку **внутри контейнера** (нужна интерактивная консоль):
+
+```bash
+pct enter 120
+cd /opt/server-billing && bash scripts/install.sh
+```
+
+Если CT в приватной сети без публичного IP — пробросьте **80/tcp** и **443/tcp** на IP контейнера (DNAT на Proxmox или reverse proxy). Для homelab с DHCP достаточно открыть панель по IP CT в LAN.
+
+Скрипт в репозитории: [`scripts/proxmox-lxc-deploy.sh`](scripts/proxmox-lxc-deploy.sh).
 
 ## HTTPS без домена
 

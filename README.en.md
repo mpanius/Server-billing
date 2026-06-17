@@ -29,6 +29,19 @@ Default HTTPS without a domain: `https://YOUR_SERVER_IP.sslip.io`
 
 Manual install: see [README.md § Manual install](README.md#ручная-установка-без-installsh).
 
+### Proxmox VE (LXC)
+
+On the **Proxmox host** (as root), create an LXC with Docker support and clone the repo:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AlekseyRusaleev/Server-billing/main/scripts/proxmox-lxc-deploy.sh -o /tmp/proxmox-lxc-deploy.sh
+bash /tmp/proxmox-lxc-deploy.sh
+```
+
+Then finish inside the container: `pct enter CTID` → `cd /opt/server-billing && bash scripts/install.sh`.
+
+Details: [README.md § Proxmox VE (LXC)](README.md#proxmox-ve-lxc).
+
 ---
 
 ## Why this project
