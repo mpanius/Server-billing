@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/AlekseyRusaleev/Server-billing.git}"
+REPO_URL="${REPO_URL:-https://github.com/mpanius/Server-billing.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/server-billing}"
 SERVICE_NAME="server-billing"
 TTY_PATH="/dev/tty"
@@ -61,11 +61,11 @@ EOF
 install_packages() {
   if command -v apt-get >/dev/null 2>&1; then
     apt-get update
-    apt-get install -y ca-certificates curl git openssh-client python3
+    apt-get install -y ca-certificates curl git openssh-client python3 python3-cryptography
   elif command -v dnf >/dev/null 2>&1; then
-    dnf install -y ca-certificates curl git openssh-clients python3
+    dnf install -y ca-certificates curl git openssh-clients python3 python3-cryptography
   elif command -v yum >/dev/null 2>&1; then
-    yum install -y ca-certificates curl git openssh-clients python3
+    yum install -y ca-certificates curl git openssh-clients python3 python3-cryptography
   else
     echo "Unsupported Linux distribution. Install Docker, Docker Compose and Git manually."
     exit 1

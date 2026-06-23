@@ -10,7 +10,7 @@
 # внутри контейнера (нужна консоль с TTY).
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/AlekseyRusaleev/Server-billing.git}"
+REPO_URL="${REPO_URL:-https://github.com/mpanius/Server-billing.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/server-billing}"
 SCRIPT_NAME="$(basename "$0")"
 
@@ -110,12 +110,12 @@ resolve_template() {
   local candidate
   candidate="$(pveam list "$TEMPLATE_STORAGE" 2>/dev/null | awk '/debian-12-standard/ {print $1; exit}')"
   if [ -n "$candidate" ]; then
-    echo "${TEMPLATE_STORAGE}:vztmpl/${candidate}"
+    echo "$candidate"
     return
   fi
   candidate="$(pveam list "$TEMPLATE_STORAGE" 2>/dev/null | awk '/ubuntu-24.04-standard/ {print $1; exit}')"
   if [ -n "$candidate" ]; then
-    echo "${TEMPLATE_STORAGE}:vztmpl/${candidate}"
+    echo "$candidate"
     return
   fi
 
