@@ -1,3 +1,10 @@
+{
+    # Клиенты, обращающиеся по голому IP, не присылают TLS SNI (SNI только для hostname).
+    # Без этого Caddy не может подобрать сертификат и рвёт handshake (tlsv1 internal error).
+    # default_sni подставляет адрес сайта как SNI -> выдаётся internal-сертификат для IP/LAN.
+    default_sni {$CADDY_SITE_ADDRESS}
+}
+
 http://{$SERVER_IP} {
     redir https://{$CADDY_SITE_ADDRESS}{uri} permanent
 }

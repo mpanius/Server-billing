@@ -169,7 +169,12 @@ bootstrap_container() {
     if ! command -v docker >/dev/null 2>&1; then
       curl -fsSL https://get.docker.com | sh
     fi
-    systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+    # Docker-in-LXC: docker-ce тянет apparmor (Recommends); внутри LXC вложенный runc
+    # не может применить docker-default -> build/run падают. Убираем apparmor и
+    # перезапускаем dockerd, чтобы он не детектил apparmor_parser и не навешивал профиль.
+    command -v apt-get >/dev/null 2>&1 && apt-get remove -y apparmor 2>/dev/null || true
+    systemctl enable docker 2>/dev/null || true
+    systemctl restart docker 2>/dev/null || service docker restart 2>/dev/null || true
   '
 
   log "Клонирование репозитория в ${INSTALL_DIR}..."
@@ -273,6 +278,13 @@ main() {
     --features nesting=1,keyctl=1 \
     --onboot 1 \
     --start 0
+
+  # Docker-in-LXC: вложенный runc не может применить apparmor-профиль docker-default
+  # внутри LXC (attr/apparmor/exec недоступен) — делаем сам LXC unconfined.
+  if ! grep -q '^lxc.apparmor.profile' "/etc/pve/lxc/${CTID}.conf"; then
+    echo "lxc.apparmor.profile: unconfined" >> "/etc/pve/lxc/${CTID}.conf"
+    log "  apparmor: профиль LXC -> unconfined (для Docker-in-LXC)"
+  fi
 
   if [ "$UNPRIVILEGED" = "0" ]; then
     log "Privileged CT: Docker в LXC поддерживается через nesting=1."
