@@ -115,16 +115,26 @@ write_env() {
   local app_encryption_key="$6"
   local bot_token="$7"
   local chat_id="$8"
-  local base_url site_address server_ip currency_rates currency_rates_updated_at update_token
+  local base_url site_address server_ip currency_rates currency_rates_updated_at update_token caddy_tls
 
   server_ip="$(curl -fsS --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"
 
-  if [ -n "$domain" ]; then
+  if [ -n "$domain" ] && [ -n "$email" ]; then
+    # Публичный домен с email -> Let's Encrypt.
     site_address="$domain"
     base_url="https://$domain"
+    caddy_tls="$email"
+  elif [ -n "$domain" ]; then
+    # Домен без email -> внутренний self-signed (LE без email через Caddyfile не задать).
+    site_address="$domain"
+    base_url="https://$domain"
+    caddy_tls="internal"
   else
+    # Без домена -> доступ по <ip>.sslip.io с самоподписанным сертификатом.
+    # LE для LAN/непубличного IP недостижим, поэтому internal.
     site_address="$server_ip.sslip.io"
     base_url="https://$site_address"
+    caddy_tls="internal"
   fi
 
   currency_rates="$(python3 - <<'PY'
@@ -172,6 +182,7 @@ BASE_URL=$base_url
 SERVER_IP=$server_ip
 CADDY_SITE_ADDRESS=$site_address
 CADDY_EMAIL=$email
+CADDY_TLS=$caddy_tls
 APP_SECRET_KEY_FILE=/app/secrets/session.key
 APP_ENCRYPTION_KEY_WRAP_FILE=/app/secrets/encryption.key.wrap
 PANEL_KEY_PASSPHRASE_FILE=/app/secrets/unlock.passphrase

@@ -1,16 +1,14 @@
-{
-    # Клиенты, обращающиеся по голому IP, не присылают TLS SNI (SNI только для hostname).
-    # Без этого Caddy не может подобрать сертификат и рвёт handshake (tlsv1 internal error).
-    # default_sni подставляет адрес сайта как SNI -> выдаётся internal-сертификат для IP/LAN.
-    default_sni {$CADDY_SITE_ADDRESS}
-}
-
 http://{$SERVER_IP} {
     redir https://{$CADDY_SITE_ADDRESS}{uri} permanent
 }
 
 {$CADDY_SITE_ADDRESS} {
     encode zstd gzip
+
+    # TLS-издатель: internal = самоподписанный сертификат локального CA Caddy
+    # (LAN-доступ по hostname, напр. <ip>.sslip.io — браузер шлёт SNI), либо email
+    # для Let's Encrypt при публичном домене. Значение берётся из .env (CADDY_TLS).
+    tls {$CADDY_TLS:internal}
 
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
