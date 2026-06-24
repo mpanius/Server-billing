@@ -128,12 +128,14 @@ https://YOUR_SERVER_IP.sslip.io
 
 Для [Proxmox VE](https://www.proxmox.com/) есть скрипт, который на **хосте Proxmox** создаёт LXC-контейнер с поддержкой Docker (`nesting=1`), ставит Docker, клонирует репозиторий и оставляет финальный шаг — интерактивный `install.sh` (пароли и HTTPS).
 
-**Требования:** Proxmox VE 7/8, root на узле, шаблон Debian 12 (скачивается через `pveam`, если нет локально). По умолчанию контейнер **privileged** — так надёжнее работает Docker в LXC.
+**Требования:** Proxmox VE 7/8/9, root на узле. Шаблон ОС (Debian 12 / Ubuntu 24.04) подхватывается локально или скачивается через `pveam`. По умолчанию контейнер **privileged** — так надёжнее работает Docker в LXC.
+
+**Docker-in-LXC (скрипт делает автоматически):** в конфиг CT на хосте добавляется `lxc.apparmor.profile: unconfined`, а внутри CT удаляется пакет `apparmor`. Иначе вложенный runc не может применить профиль `docker-default` и `docker build`/`run` падают с `apparmor failed to apply profile … attr/apparmor/exec: no such file or directory`. Также `install.sh` ставит `python3-cryptography` — он нужен для обёртки master-ключа (`app/key_wrap.py`).
 
 На shell **хоста Proxmox** (не внутри CT):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AlekseyRusaleev/Server-billing/main/scripts/proxmox-lxc-deploy.sh -o /tmp/proxmox-lxc-deploy.sh
+curl -fsSL https://raw.githubusercontent.com/mpanius/Server-billing/main/scripts/proxmox-lxc-deploy.sh -o /tmp/proxmox-lxc-deploy.sh
 bash /tmp/proxmox-lxc-deploy.sh
 ```
 
@@ -166,7 +168,11 @@ pct enter 120
 cd /opt/server-billing && bash scripts/install.sh
 ```
 
-Если CT в приватной сети без публичного IP — пробросьте **80/tcp** и **443/tcp** на IP контейнера (DNAT на Proxmox или reverse proxy). Для homelab с DHCP достаточно открыть панель по IP CT в LAN.
+**Доступ в LAN (без домена):** по умолчанию `install.sh` выдаёт самоподписанный сертификат (`CADDY_TLS=internal`), и панель открывается по **голому IP контейнера** — `https://<ip-CT>` (браузер один раз спросит «Advanced → Proceed», т.к. CA внутренний). Глобальный `default_sni` в `Caddyfile` позволяет Caddy отдавать сертификат и без TLS SNI (браузеры не шлют SNI для IP-литералов).
+
+> ⚠ Хостнейм `<ip>.sslip.io` в локальной сети часто **не резолвится** из-за DNS rebinding protection на резолверах (публичное имя → приватный IP отбрасывается, `ERR_NAME_NOT_RESOLVED`). Используйте голый IP.
+
+**Публичный домен:** укажите домен и email в `install.sh` — Caddy получит сертификат Let's Encrypt (нужен доступ извне к **80/443**; при NAT пробросьте порты на IP контейнера).
 
 Скрипт в репозитории: [`scripts/proxmox-lxc-deploy.sh`](scripts/proxmox-lxc-deploy.sh).
 
