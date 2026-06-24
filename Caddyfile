@@ -1,3 +1,10 @@
+{
+    # Доступ по голому IP: браузеры не шлют TLS SNI для IP-литералов, поэтому
+    # Caddy не может подобрать сертификат и рвёт handshake. default_sni подставляет
+    # адрес сайта как SNI -> отдаётся сертификат (для domain SNI и так шлётся — безвредно).
+    default_sni {$CADDY_SITE_ADDRESS}
+}
+
 http://{$SERVER_IP} {
     redir https://{$CADDY_SITE_ADDRESS}{uri} permanent
 }
